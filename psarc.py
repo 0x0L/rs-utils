@@ -13,6 +13,7 @@ import struct
 import zlib
 import os
 import md5
+import sys
 
 
 MAGIC         = "PSAR"
@@ -47,13 +48,18 @@ def path2dict(path):
 
     return output
 
+def stdout_same_line(line):
+    """Prepend carriage return and output to stdout"""
+    sys.stdout.write('\r' + line[:80])
+    sys.stdout.flush()
+
 
 def update_ctr(counter):
     """Update counter function for AES CTR"""
     for j in xrange(15, -1, -1):
         updated = (ord(counter[j]) + 1) % 256
         counter = counter[:j] + chr(updated) + counter[j+1:]
-        if updated == 0:
+        if updated != 0:
             break
     return counter
 
@@ -88,7 +94,6 @@ def decrypt_sng(data, key):
     AES CTR and then zlib decompressed. Size is checked."""
 
     decrypted = aes_ctr(data[24:], key, data[8:24], encrypt=False)
-
     length = struct.unpack('<L', decrypted[:4])[0] # file size
     payload = zlib.decompress(decrypted[4:])
     assert(len(payload) == length)
@@ -265,9 +270,13 @@ def create_toc(entries):
 def extract_psarc(filename):
     """Extract a PSARC to disk"""
     basepath = os.path.basename(filename)[:-6]
+
     with open(filename, 'rb') as psarc:
         entries = read_toc(psarc)
-        for entry in entries:
+
+        logmsg = 'Extracting ' + basepath + ' {0}/' + str(len(entries))
+        for idx, entry in enumerate(entries):
+            stdout_same_line(logmsg.format(idx+1))
             fname = os.path.join(basepath, entry['filepath'])
             data = read_entry(psarc, entry)
 
@@ -276,6 +285,7 @@ def extract_psarc(filename):
                 os.makedirs(path)
             with open (fname, 'wb') as fstream:
                 fstream.write(data)
+    print
 
 def create_psarc(files, filename):
     """Writes a dictionary filepath -> data to a PSARC file"""
@@ -283,14 +293,16 @@ def create_psarc(files, filename):
     filenames = reversed(sorted(files.keys()))
     entries = [ create_entry('', '\n'.join(filenames)) ]
 
-    for name, data in reversed(sorted(files.items())):
+    logmsg = 'Creating ' + filename + ' {0}/' + str(len(files))
+    for idx, (name, data) in enumerate(reversed(sorted(files.items()))):
+        stdout_same_line(logmsg.format(idx+1))
         entries.append(create_entry(name, data))
 
     with open(filename, 'wb') as fstream:
         fstream.write(create_toc(entries))
         for entry in entries:
             fstream.write(entry['data'])
-
+    print
 
 if __name__ == '__main__':
     from docopt import docopt
