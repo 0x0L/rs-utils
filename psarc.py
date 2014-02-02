@@ -212,7 +212,6 @@ def read_toc(filestream):
     entries[0]['filepath'] = ''
     filepaths = read_entry(filestream, entries[0]).split()
     for entry, filepath in zip(entries[1:], filepaths):
-        print filepath
         entry['filepath'] = filepath
 
     return entries[1:]
@@ -255,7 +254,7 @@ def create_toc(entries):
                 segment_size= 128
             )
 
-    return header + cipher.encrypt(pad(toc))
+    return (header + cipher.encrypt(pad(toc)))[:toc_size]
 
 
 def read_psarc(filename, write_to_disk=False):
@@ -305,7 +304,7 @@ def path2alist(path):
             fullpath = os.path.join(dirpath, filename)
             name = fullpath[len(path)+1:]
 
-            with open(fullpath) as fstream:
+            with open(fullpath, 'rb') as fstream:
                 output[name] = fstream.read()
 
     return output
@@ -320,4 +319,5 @@ if __name__ == '__main__':
             read_psarc(f, write_to_disk=True)
     elif args['pack']:
         for d in args['DIRECTORY']:
-            write_psarc(path2alist(d), os.path.normpath(d) + '.psarc')
+            d = os.path.normpath(d)
+            write_psarc(path2alist(d), d + '.psarc')
