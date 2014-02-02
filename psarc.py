@@ -9,7 +9,6 @@ Usage:
 """
 
 from Crypto.Cipher import AES
-
 import struct
 import zlib
 import os
@@ -35,21 +34,31 @@ def pad(data, blocksize=16):
     padding = (blocksize - len(data)) % blocksize
     return data + chr(0) * padding
 
-def update_ctr(ctr):
-    """Update counter function for AES CTR"""
+def path2dict(path):
+    """Reads a path into a dictionary"""
+    output = {}
+    for dirpath, _, filenames in os.walk(path):
+        for filename in filenames:
+            fullpath = os.path.join(dirpath, filename)
+            name = fullpath[len(path)+1:]
 
-    j = 15
-    carry = True
-    while j >= 0 and carry:
-        add_one = (ord(ctr[j]) + 1) % 256
-        ctr = ctr[:j] + chr(add_one) + ctr[j+1:]
-        carry = add_one == 0
-        j -= 1
-    return ctr
+            with open(fullpath, 'rb') as fstream:
+                output[name] = fstream.read()
+
+    return output
+
+
+def update_ctr(counter):
+    """Update counter function for AES CTR"""
+    for j in xrange(15, -1, -1):
+        updated = (ord(counter[j]) + 1) % 256
+        counter = counter[:j] + chr(updated) + counter[j+1:]
+        if updated == 0:
+            break
+    return counter
 
 def aes_ctr(data, key, ivector, encrypt=True):
     """AES CTR Mode"""
-
     output = ''
 
     i = 0
@@ -75,8 +84,8 @@ def aes_ctr(data, key, ivector, encrypt=True):
 
 def decrypt_sng(data, key):
     """Decrypt SNG. Data consist of a 8 bytes header, 16 bytes initialization
-    vector and payload. Payload is first decrypted using AES CTR and then
-    zlib decompressed. Size is checked."""
+    vector and payload and the DSA signature. Payload is first decrypted using
+    AES CTR and then zlib decompressed. Size is checked."""
 
     decrypted = aes_ctr(data[24:], key, data[8:24], encrypt=False)
 
@@ -88,11 +97,10 @@ def decrypt_sng(data, key):
 
 def encrypt_sng(data, key):
     """Encrypt SNG"""
+    output = struct.pack('<LL', 0x4a, 3) # the header
 
     payload = struct.pack('<L', len(data))
     payload += zlib.compress(data, zlib.Z_BEST_COMPRESSION)
-
-    output = struct.pack('<LL', 0x4a, 3)
 
     ivector = 16*chr(0)
     output += ivector
@@ -103,7 +111,6 @@ def encrypt_sng(data, key):
 
 def read_entry(filestream, entry):
     """Extract zlib for one entry"""
-
     data = ''
 
     length = entry['length']
@@ -164,9 +171,18 @@ def create_entry(name, data):
     }
 
 
+def cipher_toc():
+    """AES CFB Mode"""
+    return AES.new(
+        ARC_KEY.decode('hex'),
+        mode= AES.MODE_CFB,
+        IV= ARC_IV.decode('hex'),
+        segment_size= 128
+    )
+
 def read_toc(filestream):
     """Read entry list and Z-fragments.
-    Returns a list of entries."""
+    Returns a list of entries to be used with read_entry."""
 
     entries = []
     zlength = []
@@ -177,38 +193,32 @@ def read_toc(filestream):
     toc_size = header[3] - 32
     n_entries = header[5]
 
-    cipher = AES.new(
-                ARC_KEY.decode('hex'),
-                mode= AES.MODE_CFB,
-                IV= ARC_IV.decode('hex'),
-                segment_size= 128
-            )
-
-    toc = cipher.decrypt(pad(filestream.read(toc_size)))
-    offset = 0
+    toc = cipher_toc().decrypt(pad(filestream.read(toc_size)))
+    toc_position = 0
 
     idx = 0
     while (idx < n_entries):
-        data = toc[offset:offset + ENTRY_SIZE]
+        data = toc[toc_position:toc_position + ENTRY_SIZE]
         entries.append({
             'md5'    : data[:16],
             'zindex' : struct.unpack('>L', data[16:20])[0],
             'length' : struct.unpack('>Q', 3*chr(0) + data[20:25])[0],
             'offset' : struct.unpack('>Q', 3*chr(0) + data[25:])[0]
         })
-        offset += ENTRY_SIZE
+        toc_position += ENTRY_SIZE
         idx += 1
 
     idx = 0
     while (idx < (toc_size - ENTRY_SIZE * n_entries) / 2):
-        data = toc[offset:offset+2]
+        data = toc[toc_position:toc_position + 2]
         zlength.append(struct.unpack('>H', data)[0])
-        offset += 2
+        toc_position += 2
         idx += 1
 
     for entry in entries:
         entry['zlength'] = zlength[entry['zindex']:]
 
+    # Process the first entry as it contains the file listing
     entries[0]['filepath'] = ''
     filepaths = read_entry(filestream, entries[0]).split()
     for entry, filepath in zip(entries[1:], filepaths):
@@ -247,45 +257,33 @@ def create_toc(entries):
     for i in zlength:
         toc += struct.pack('>H', i)
 
-    cipher = AES.new(
-                ARC_KEY.decode('hex'),
-                mode= AES.MODE_CFB,
-                IV= ARC_IV.decode('hex'),
-                segment_size= 128
-            )
-
-    return (header + cipher.encrypt(pad(toc)))[:toc_size]
+    # the [:toc_size] seems a little odd, but padding is not applied
+    # in official PSARC either
+    return ( header + cipher_toc().encrypt(pad(toc)) )[:toc_size]
 
 
-def read_psarc(filename, write_to_disk=False):
-    """Read a PSARC into an association list"""
-
-    output = []
-    with open(filename, 'rb') as fobj:
-        entries = read_toc(fobj)
+def extract_psarc(filename):
+    """Extract a PSARC to disk"""
+    basepath = os.path.basename(filename)[:-6]
+    with open(filename, 'rb') as psarc:
+        entries = read_toc(psarc)
         for entry in entries:
-            data = read_entry(fobj, entry)
-            if write_to_disk:
-                path = os.path.basename(filename)[:-6]
-                enclosing_dir = os.path.join(path, os.path.dirname(entry['filepath']))
-                if not os.path.exists(enclosing_dir):
-                    os.makedirs(enclosing_dir)
+            fname = os.path.join(basepath, entry['filepath'])
+            data = read_entry(psarc, entry)
 
-                with open (os.path.join(path, entry['filepath']), 'wb') as fstream:
-                    fstream.write(data)
-            else:
-                output.append((entry['filepath'], data))
+            path = os.path.dirname(fname)
+            if not os.path.exists(path):
+                os.makedirs(path)
+            with open (fname, 'wb') as fstream:
+                fstream.write(data)
 
-    return output
-
-def write_psarc(alist, filename):
-    """Writes an association list to a psarc file"""
-
+def create_psarc(files, filename):
+    """Writes a dictionary filepath -> data to a PSARC file"""
     # Order is reversed
-    filenames = reversed(sorted(alist.keys()))
+    filenames = reversed(sorted(files.keys()))
     entries = [ create_entry('', '\n'.join(filenames)) ]
 
-    for name, data in reversed(sorted(alist.items())):
+    for name, data in reversed(sorted(files.items())):
         entries.append(create_entry(name, data))
 
     with open(filename, 'wb') as fstream:
@@ -294,30 +292,14 @@ def write_psarc(alist, filename):
             fstream.write(entry['data'])
 
 
-def path2alist(path):
-    """Reads a path into a list of tuple (name, data)"""
-
-    output = {}
-
-    for dirpath, _, filenames in os.walk(path):
-        for filename in filenames:
-            fullpath = os.path.join(dirpath, filename)
-            name = fullpath[len(path)+1:]
-
-            with open(fullpath, 'rb') as fstream:
-                output[name] = fstream.read()
-
-    return output
-
-
 if __name__ == '__main__':
     from docopt import docopt
     args = docopt(__doc__)
 
     if args['unpack']:
         for f in args['FILE']:
-            read_psarc(f, write_to_disk=True)
+            extract_psarc(f)
     elif args['pack']:
         for d in args['DIRECTORY']:
             d = os.path.normpath(d)
-            write_psarc(path2alist(d), d + '.psarc')
+            create_psarc(path2dict(d), d + '.psarc')
