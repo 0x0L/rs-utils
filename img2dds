@@ -1,0 +1,13 @@
+#!/bin/sh
+#
+# Convert an image to 3 DDS image suitable for Rocksmith 2014 customs
+#
+THISPATH=$(cd "$(dirname "$0")"; pwd)
+
+BASENAME=$(basename "$1")
+BASENAME="${BASENAME%.*}"
+
+for SIZE in 64 128 256
+do
+    WINEDEBUG=-all wine "$THISPATH/nvdxt.exe" -file $1 -output ${BASENAME}_$SIZE -prescale $SIZE $SIZE -nomipmap -RescaleBox -dxt1a
+done

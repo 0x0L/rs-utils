@@ -1,0 +1,15 @@
+#!/bin/sh
+#
+# Convert WEM files back into OGG.
+#
+# Usage:
+#     wem2ogg FILE...
+#
+THISPATH=$(cd "$(dirname "$0")"; pwd)
+PCB=$THISPATH/packed_codebooks.bin
+
+for var in "$@"
+do
+    WINEDEBUG=-all wine "$THISPATH/ww2ogg.exe" $var -o $var.ogg --pcb "$PCB"
+    WINEDEBUG=-all wine "$THISPATH/revorb.exe" $var.ogg
+done

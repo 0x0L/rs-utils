@@ -1,0 +1,5 @@
+#!/bin/sh
+#
+# A wrapper for Wwise CLI tool
+#
+WINEDEBUG=-all wine "/Users/xav/.wine/drive_c/Program Files/Audiokinetic/Wwise v2013.2.4 build 4836/Authoring/Win32/Release/bin/WwiseCLI.exe" $*

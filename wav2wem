@@ -1,0 +1,25 @@
+#!/bin/sh
+#
+# Converts a WAV audio file to an Audiokinetic WEM file suitable for
+# Rocksmith 2014
+#
+# Usage:
+#     wav2wem FILE...
+#
+THISPATH=$(cd "$(dirname "$0")"; pwd)
+
+for var in "$@"
+do
+    BASENAME=$(basename "$var")
+    BASENAME="${BASENAME%.*}"
+
+    tar -zxf "$THISPATH/Template.tar.gz"
+    cp "$1" Template/Originals/SFX/song.wav
+
+    cd Template
+    "$THISPATH/WwiseCLI" Template.wproj -GenerateSoundBanks
+    cd ..
+
+    mv Template/GeneratedSoundBanks/Windows/1071015983.wem "$BASENAME.wem"
+    rm -fr Template
+done
