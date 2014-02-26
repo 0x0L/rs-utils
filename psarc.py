@@ -6,6 +6,7 @@ Manipulate PSARC archives used by Rocksmith 2014.
 Usage:
     psarc.py pack DIRECTORY...
     psarc.py unpack FILE...
+    psarc.py convert FILE...
 """
 
 from Crypto.Cipher import AES
@@ -16,18 +17,18 @@ import md5
 import sys
 
 
-MAGIC         = "PSAR"
-VERSION       = 65540
-COMPRESSION   = "zlib"
+MAGIC = "PSAR"
+VERSION = 65540
+COMPRESSION = "zlib"
 ARCHIVE_FLAGS = 4
-ENTRY_SIZE    = 30
-BLOCK_SIZE    = 65536
+ENTRY_SIZE = 30
+BLOCK_SIZE = 65536
 
 ARC_KEY = 'C53DB23870A1A2F71CAE64061FDD0E1157309DC85204D4C5BFDF25090DF2572C'
-ARC_IV  = 'E915AA018FEF71FC508132E4BB4CEB42'
+ARC_IV = 'E915AA018FEF71FC508132E4BB4CEB42'
 
 MAC_KEY = '9821330E34B91F70D0A48CBD625993126970CEA09192C0E6CDA676CC9838289D'
-PC_KEY  = 'CB648DF3D12A16BF71701414E69619EC171CCA5D2A142E3E59DE7ADDA18A3A30'
+PC_KEY = 'CB648DF3D12A16BF71701414E69619EC171CCA5D2A142E3E59DE7ADDA18A3A30'
 
 
 def pad(data, blocksize=16):
@@ -98,7 +99,7 @@ def decrypt_sng(data, key):
     payload = ''
     try:
         payload = zlib.decompress(decrypted[4:])
-        assert (len(payload) == length)
+        assert len(payload) == length
     except:
         print 'An error occurred while processing sng!'
         payload = decrypted
@@ -160,7 +161,7 @@ def create_entry(name, data):
     output = ''
 
     i = 0
-    while (i < len(data)):
+    while i < len(data):
         raw = data[i:i+BLOCK_SIZE]
         i += BLOCK_SIZE
 
@@ -185,9 +186,9 @@ def cipher_toc():
     """AES CFB Mode"""
     return AES.new(
         ARC_KEY.decode('hex'),
-        mode= AES.MODE_CFB,
-        IV= ARC_IV.decode('hex'),
-        segment_size= 128
+        mode=AES.MODE_CFB,
+        IV=ARC_IV.decode('hex'),
+        segment_size=128
     )
 
 def read_toc(filestream):
@@ -207,7 +208,7 @@ def read_toc(filestream):
     toc_position = 0
 
     idx = 0
-    while (idx < n_entries):
+    while idx < n_entries:
         data = toc[toc_position:toc_position + ENTRY_SIZE]
         entries.append({
             'md5'    : data[:16],
@@ -219,7 +220,7 @@ def read_toc(filestream):
         idx += 1
 
     idx = 0
-    while (idx < (toc_size - ENTRY_SIZE * n_entries) / 2):
+    while idx < (toc_size - ENTRY_SIZE * n_entries) / 2:
         data = toc[toc_position:toc_position + 2]
         zlength.append(struct.unpack('>H', data)[0])
         toc_position += 2
@@ -269,7 +270,7 @@ def create_toc(entries):
 
     # the [:toc_size] seems a little odd, but padding is not applied
     # in official PSARC either
-    return ( header + cipher_toc().encrypt(pad(toc)) )[:toc_size]
+    return (header + cipher_toc().encrypt(pad(toc)))[:toc_size]
 
 
 def extract_psarc(filename):
@@ -288,7 +289,7 @@ def extract_psarc(filename):
             path = os.path.dirname(fname)
             if not os.path.exists(path):
                 os.makedirs(path)
-            with open (fname, 'wb') as fstream:
+            with open(fname, 'wb') as fstream:
                 fstream.write(data)
     print
 
@@ -296,7 +297,7 @@ def create_psarc(files, filename):
     """Writes a dictionary filepath -> data to a PSARC file"""
     # Order is reversed
     filenames = reversed(sorted(files.keys()))
-    entries = [ create_entry('', '\n'.join(filenames)) ]
+    entries = [create_entry('', '\n'.join(filenames))]
 
     logmsg = 'Creating ' + filename + ' {0}/' + str(len(files))
     for idx, (name, data) in enumerate(reversed(sorted(files.items()))):
@@ -309,6 +310,45 @@ def create_psarc(files, filename):
             fstream.write(entry['data'])
     print
 
+def change_path(data, osx2pc):
+    """Changing path"""
+    if osx2pc:
+        data = data.replace('audio/mac', 'audio/windows')
+        data = data.replace('bin/macos', 'bin/generic')
+    else:
+        data = data.replace('audio/windows', 'audio/mac')
+        data = data.replace('bin/generic', 'bin/macos')
+    return data
+
+def convert(filename):
+    """Convert between PC and Mac PSARC"""
+
+    content = {}
+
+    osx2pc = False
+    outname = filename
+    if filename.endswith('_m.psarc'):
+        outname = filename.replace('_m.psarc', '_p.psarc')
+        osx2pc = True
+    else:
+        outname = filename.replace('_p.psarc', '_m.psarc')
+
+    with open(filename, 'rb') as psarc:
+        entries = read_toc(psarc)
+        for entry in entries:
+            data = read_entry(psarc, entry)
+
+            if entry['filepath'].endswith('aggregategraph.nt'):
+                data = change_path(data, osx2pc)
+                if osx2pc:
+                    data = data.replace('macos', 'dx9')
+                else:
+                    data = data.replace('dx9', 'macos')
+
+            content[change_path(entry['filepath'], osx2pc)] = data
+
+    create_psarc(content, outname)
+
 if __name__ == '__main__':
     from docopt import docopt
     args = docopt(__doc__)
@@ -320,3 +360,6 @@ if __name__ == '__main__':
         for d in args['DIRECTORY']:
             d = os.path.normpath(d)
             create_psarc(path2dict(d), d + '.psarc')
+    elif args['convert']:
+        for f in args['FILE']:
+            convert(f)
