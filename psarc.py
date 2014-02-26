@@ -95,8 +95,13 @@ def decrypt_sng(data, key):
 
     decrypted = aes_ctr(data[24:], key, data[8:24], encrypt=False)
     length = struct.unpack('<L', decrypted[:4])[0] # file size
-    payload = zlib.decompress(decrypted[4:])
-    assert(len(payload) == length)
+    payload = ''
+    try:
+        payload = zlib.decompress(decrypted[4:])
+        assert (len(payload) == length)
+    except:
+        print 'An error occurred while processing sng!'
+        payload = decrypted
 
     return payload
 
