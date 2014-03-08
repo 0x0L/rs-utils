@@ -6,7 +6,10 @@
 # Usage:
 #     wav2wem FILE...
 #
-SCRIPTPATH=$(readlink -f "$0")
+SCRIPTPATH=$0
+if [ $(uname) != "Darwin" ]; then
+    SCRIPTPATH=$(readlink -f "$0")
+fi
 THISPATH=$(cd "$(dirname "$SCRIPTPATH")"; pwd)
 
 for var in "$@"
