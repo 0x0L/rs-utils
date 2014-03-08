@@ -6,7 +6,8 @@
 # Usage:
 #     wav2wem FILE...
 #
-THISPATH=$(cd "$(dirname "$0")"; pwd)
+SCRIPTPATH=$(readlink -f "$0")
+THISPATH=$(cd "$(dirname "$SCRIPTPATH")"; pwd)
 
 for var in "$@"
 do
