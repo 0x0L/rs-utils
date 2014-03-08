@@ -20,6 +20,7 @@ do
     "$THISPATH/WwiseCLI" Template.wproj -GenerateSoundBanks
     cd ..
 
-    mv Template/GeneratedSoundBanks/Windows/1071015983.wem "$BASENAME.wem"
+    mv Template/.cache/Windows/SFX/*.wem "$BASENAME.wem"
+    #mv Template/GeneratedSoundBanks/Windows/RS_SOUNDBANK.bnk "$BASENAME.bnk"
     rm -fr Template
 done
