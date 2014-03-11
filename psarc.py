@@ -10,6 +10,8 @@ Usage:
 """
 
 from Crypto.Cipher import AES
+from Crypto.Util import _counter
+
 import struct
 import zlib
 import os
@@ -55,37 +57,17 @@ def stdout_same_line(line):
     sys.stdout.flush()
 
 
-def update_ctr(counter):
-    """Update counter function for AES CTR"""
-    for j in xrange(15, -1, -1):
-        updated = (ord(counter[j]) + 1) % 256
-        counter = counter[:j] + chr(updated) + counter[j+1:]
-        if updated != 0:
-            break
-    return counter
-
 def aes_ctr(data, key, ivector, encrypt=True):
     """AES CTR Mode"""
     output = ''
 
-    i = 0
-    while i < len(data):
-        buf = data[i:i+16]
+    ctr = _counter._newBE('', '', ivector, allow_wraparound=False)
+    cipher = AES.new(key.decode('hex'), mode=AES.MODE_CTR, counter=ctr)
 
-        cipher = AES.new(
-                    key.decode('hex'),
-                    mode=AES.MODE_CFB,
-                    IV=ivector,
-                    segment_size=128
-                )
-
-        if encrypt:
-            output += cipher.encrypt(pad(buf))
-        else:
-            output += cipher.decrypt(pad(buf))
-
-        ivector = update_ctr(ivector)
-        i += 16
+    if encrypt:
+        output += cipher.encrypt(pad(data))
+    else:
+        output += cipher.decrypt(pad(data))
 
     return output
 
@@ -100,8 +82,9 @@ def decrypt_sng(data, key):
     try:
         payload = zlib.decompress(decrypted[4:])
         assert len(payload) == length
-    except:
+    except Exception as e:
         print 'An error occurred while processing sng!'
+        print e
         payload = decrypted
 
     return payload
@@ -184,12 +167,8 @@ def create_entry(name, data):
 
 def cipher_toc():
     """AES CFB Mode"""
-    return AES.new(
-        ARC_KEY.decode('hex'),
-        mode=AES.MODE_CFB,
-        IV=ARC_IV.decode('hex'),
-        segment_size=128
-    )
+    return AES.new(ARC_KEY.decode('hex'), mode=AES.MODE_CFB,
+                   IV=ARC_IV.decode('hex'), segment_size=128)
 
 def read_toc(filestream):
     """Read entry list and Z-fragments.
@@ -322,7 +301,6 @@ def change_path(data, osx2pc):
 
 def convert(filename):
     """Convert between PC and Mac PSARC"""
-
     content = {}
 
     osx2pc = False
@@ -348,6 +326,7 @@ def convert(filename):
             content[change_path(entry['filepath'], osx2pc)] = data
 
     create_psarc(content, outname)
+
 
 if __name__ == '__main__':
     from docopt import docopt
