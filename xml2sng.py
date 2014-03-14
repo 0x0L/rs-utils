@@ -685,6 +685,12 @@ def json_helper(o):
 def process_json(sng):
     sng['entry_id'] = md5.new(str(sng)).hexdigest().upper()
 
+    if sng.title == {}:
+        sng['internalName'] = sng.fileName
+
+    if sng.internalName == {}:
+        sng['internalName'] = sng.title
+
     sng['internal_name'] = sng.internalName.lower()
     sng['arrangement_name'] = sng.arrangement.lower()
 
@@ -699,15 +705,22 @@ def process_json(sng):
     sng['maxPhraseDifficulty'] = sng.metadata.maxDifficulty
     sng['targetScore'] = sng.metadata.maxScore
     sng['score_MaxNotes'] = sng.metadata.maxNotes
-    sng['score_PNV'] = sng.metadata.maxScore / sng.metadata.maxNotes
+    if sng.metadata.maxNotes > 0.0:
+        sng['score_PNV'] = sng.metadata.maxScore / sng.metadata.maxNotes
+    else:
+        sng['score_PNV'] = 1.0
 
     r = []
     for i, piter in enumerate(sng.phraseIterations):
         r.append( [sng.levels[j].notesInIterCount[i] for j in piter.difficulty] )
 
     sng['notesEasy'], sng['notesMedium'], sng['notesHard'] = map(sum, zip(*r))
-    sng['easyMastery'] = sng['notesEasy'] / sng['notesHard']
-    sng['mediumMastery'] = sng['notesMedium'] / sng['notesHard']
+    if sng.notesHard > 0:
+        sng['easyMastery'] = sng['notesEasy'] / sng['notesHard']
+        sng['mediumMastery'] = sng['notesMedium'] / sng['notesHard']
+    else:
+        sng['easyMastery'] = 1.0
+        sng['mediumMastery'] = 1.0
 
     # TODO
     sng['songDiffEasy'] = 0.5
@@ -780,6 +793,7 @@ if __name__ == '__main__':
     for f in args['FILE']:
         print 'Processing', f
         xml = load_rsxml(f)
+        xml['fileName'] = os.path.splitext(os.path.basename(f))[0]
         process_sng(xml)
 
         fname = xml.internal_name + '_' + xml.arrangement_name + '.sng'
