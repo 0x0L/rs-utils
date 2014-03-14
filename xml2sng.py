@@ -695,7 +695,7 @@ def process_json(sng):
     sng['arrangement_name'] = sng.arrangement.lower()
 
     # TODO arrangementProperties.routeMask is missing
-    sng.arrangementProperties['RouteMask'] = 0
+    sng.arrangementProperties['routeMask'] = 0
     sng['arrangementSort'] = 0
     sng['arrangementType'] = 0
 

@@ -9,39 +9,13 @@ Usage: hsan.py FILES...
 import json
 
 keys = [
-    'AlbumArt',
-    'AlbumName',
-    'AlbumNameSort',
-    'ArrangementName',
-    'ArtistName',
-    'ArtistNameSort',
-    'CentOffset',
-    'DLC',
-    'DLCKey',
-    'DNA_Chords',
-    'DNA_Riffs',
-    'DNA_Solo',
-    'EasyMastery',
-    'LeaderboardChallengeRating',
-    'ManifestUrn',
-    'MasterID_RDV',
-    'MediumMastery',
-    'NotesEasy',
-    'NotesHard',
-    'NotesMedium',
-    'PersistentID',
-    'SKU',
-    'Shipping',
-    'SongDiffEasy',
-    'SongDiffHard',
-    'SongDiffMed',
-    'SongDifficulty',
-    'SongKey',
-    'SongLength',
-    'SongName',
-    'SongNameSort',
-    'SongYear',
-    'Tuning'
+    'AlbumArt', 'AlbumName', 'AlbumNameSort', 'ArrangementName', 'ArtistName',
+    'ArtistNameSort', 'CentOffset', 'DLC', 'DLCKey', 'DNA_Chords', 'DNA_Riffs',
+    'DNA_Solo', 'EasyMastery', 'LeaderboardChallengeRating', 'ManifestUrn',
+    'MasterID_RDV', 'MediumMastery', 'NotesEasy',  'NotesHard', 'NotesMedium',
+    'PersistentID', 'SKU', 'Shipping', 'SongDiffEasy', 'SongDiffHard',
+    'SongDiffMed', 'SongDifficulty', 'SongKey', 'SongLength', 'SongName',
+    'SongNameSort', 'SongYear', 'Tuning'
 ]
 
 xblock_template = """
@@ -105,7 +79,7 @@ if __name__ == '__main__':
 
             u = o['Entries'][id]['Attributes']
             a = {}
-            a['RouteMask'] = u['ArrangementProperties']['RouteMask']
+            a['RouteMask'] = u['ArrangementProperties']['routeMask']
             a['Representative'] = u['ArrangementProperties']['represent']
             for k in keys:
                 a[k] = u[k]
@@ -130,5 +104,6 @@ if __name__ == '__main__':
 
     with open('songs_dlc_' + name + '.hsan', 'w') as fstream:
       fstream.write(json.dumps(output, indent=4, sort_keys=True))
+
     with open(name + '.xblock', 'w') as fstream:
       fstream.write(xblock)
