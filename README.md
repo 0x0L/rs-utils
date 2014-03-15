@@ -12,7 +12,7 @@ Usage
   * `wav2wem` converts WAV to Wwise WEM
   * `wem2bnk` generates BNK files from WEM files
   * `img2dds` automatically generates DDS files from an image
-
+  * `tones.py` extracts tones JSON from profiles and PSARCs
 
 Setup
 -----
@@ -40,7 +40,7 @@ TODO
 Core functionalities are now almost equivalent to the RocksmithToolkit (with no
 console support though).
 
-* Lyrics support needs more a bit more work
+* Lyrics support needs more a bit more work (JSON, HSAN)
 
 * Build a proper package generator
 
