@@ -247,18 +247,18 @@ class SngXmlBuilder
 
       :events => carray(:event, @events),
 
-      :transcriptionTrack => {
-        :@difficulty => -1
-      },
+      :transcriptionTrack => { :@difficulty => -1 },
 
-      :levels => carray(:level, [{
-        :@difficulty => 0,
-        :notes => carray(:note, @notes),
-        :chords => carray(:chord, @chords),
-        :fretHandMutes => carray(:fretHandMute, @fret_hand_mutes),
-        :anchors => carray(:anchor, @anchors),
-        :handShapes => carray(:handShape, @hand_shapes)
-      }])
+      :levels => carray(:level, [
+        {
+          :@difficulty => 0,
+          :notes => carray(:note, @notes),
+          :chords => carray(:chord, @chords),
+          :fretHandMutes => carray(:fretHandMute, @fret_hand_mutes),
+          :anchors => carray(:anchor, @anchors),
+          :handShapes => carray(:handShape, @hand_shapes)
+        }
+      ])
     }
   end
 
@@ -325,7 +325,6 @@ class SngXmlBuilder
     n
   end
 
-  #   chords = []
   def create_chord(time, notes)
     {
       :@time => bar2time(time),
@@ -338,7 +337,7 @@ class SngXmlBuilder
       # :@palmMute => 0,
       # :@hopo => 0,
       # :@strum => "down",
-      :@chordNotes => notes # no bend values
+      :@chordNotes => notes # TODO: no bend values
     }
   end
 

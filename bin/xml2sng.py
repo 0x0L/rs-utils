@@ -693,6 +693,7 @@ def json_helper(o):
 def process_json(sng):
     sng['entry_id'] = md5.new(str(sng)).hexdigest().upper()
 
+    # Should be already filled...
     if sng.title == {}:
         sng['internalName'] = sng.fileName
 
@@ -731,13 +732,13 @@ def process_json(sng):
         sng['easyMastery'] = 1.0
         sng['mediumMastery'] = 1.0
 
-    # TODO
+    # TODO: no idea how those are computed
     sng['songDiffEasy'] = 0.5
     sng['songDiffMed'] = 0.5
     sng['songDiffHard'] = 0.5
     sng['songDifficulty'] = sng['songDiffHard']
 
-    # TODO tones
+    # TODO: tones
     sng['toneBase'] = ''
     sng['toneA'] = ''
     sng['toneB'] = ''
