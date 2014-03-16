@@ -27,8 +27,6 @@ wine msiexec /i Authoring_Win32.msi
 wine msiexec /i Authoring_Data.msi
 ```
 
-In `WwiseCLI` adjust the path to point to your Wwise install.
-
 Install the python dependencies with
 
 ```sh

@@ -17,7 +17,7 @@ do
     BASENAME=$(basename "$var")
     BASENAME="${BASENAME%.*}"
 
-    tar -zxf "$THISPATH/Template.tar.gz"
+    tar -zxf "$THISPATH/../share/Template.tar.gz"
     cp "$1" Template/Originals/SFX/song.wav
 
     cd Template

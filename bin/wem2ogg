@@ -5,8 +5,13 @@
 # Usage:
 #     wem2ogg FILE...
 #
-THISPATH=$(cd "$(dirname "$0")"; pwd)
-PCB=$THISPATH/packed_codebooks.bin
+SCRIPTPATH=$0
+if [ $(uname) != "Darwin" ]; then
+    SCRIPTPATH=$(readlink -f "$0")
+fi
+THISPATH=$(cd "$(dirname "$SCRIPTPATH")"; pwd)
+
+PCB=$THISPATH/../share/packed_codebooks.bin
 
 for var in "$@"
 do

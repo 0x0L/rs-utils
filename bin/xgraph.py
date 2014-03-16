@@ -23,7 +23,7 @@ TAGS = {
     '.sng'   : ['application', 'macos', 'musicgame-song'],
     '.xml'   : ['application', 'xml'],
     '.dds'   : ['dds', 'image'],
-    '.bnk'   : ['audio', 'macos', 'wwise-sound-bank']
+    '.bnk'   : ['audio', 'wwise-sound-bank']  # ,'macos']
 }
 
 # EXT_TEMPLATE for sng, xml, dds, bnk

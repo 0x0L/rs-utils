@@ -556,6 +556,14 @@ def process_sng(sng):
     for nld in sng.newLinkedDiffs:
         nld.nld_phrase = [x.id for x in nld.nld_phrase]
 
+    # TONE_MAPPING = {}
+    # TONE_MAPPING[sng.tonea] = 0
+    # TONE_MAPPING[sng.toneb] = 1
+    # TONE_MAPPING[sng.tonec] = 2
+    # TONE_MAPPING[sng.toned] = 3
+    # for tone in sng.tones:
+    #     tone['id'] = TONE_MAPPING[tone.name]
+
     sng['dnas'] = []
     for event in sng.events:
         if DNA_MAPPING.has_key(event.code):

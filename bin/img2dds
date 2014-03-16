@@ -2,7 +2,11 @@
 #
 # Convert an image to 3 DDS image suitable for Rocksmith 2014 customs
 #
-THISPATH=$(cd "$(dirname "$0")"; pwd)
+SCRIPTPATH=$0
+if [ $(uname) != "Darwin" ]; then
+    SCRIPTPATH=$(readlink -f "$0")
+fi
+THISPATH=$(cd "$(dirname "$SCRIPTPATH")"; pwd)
 
 BASENAME=$(basename "$1")
 BASENAME="${BASENAME%.*}"
