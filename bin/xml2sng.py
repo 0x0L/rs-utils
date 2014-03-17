@@ -580,6 +580,8 @@ def process_sng(sng):
     process_phrase_iterations(sng)
 
     for nld in sng.newLinkedDiffs:
+        if not type(nld.phraseCount) is list:
+            nld.nld_phrase = [nld.nld_phrase]
         nld.nld_phrase = [x.id for x in nld.nld_phrase]
 
     sng['dnas'] = []

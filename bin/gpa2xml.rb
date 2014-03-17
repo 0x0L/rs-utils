@@ -53,33 +53,33 @@ end
 
 ## OVERVIEW
 
-# Ebeats
 # Build notes and chords
-# Tone change from beat markers
-# sections
 # anchors
 # handshapes
 # chord templates
 # fingering
-# tuning, metadat, arrangement properties
+# arrangement properties
 
 # TODO
 # cent offset is missing from GP
 # compute internalName, sort names
-# albumArt
 # ToneA, ..., D
 
 class SngXmlBuilder
   def initialize(gp_song, track, sync_data)
     @gp_song = gp_song
     @track = track
-    @bar2time = sync_data
+    @timerinter = sync_data
 
-    @internalName = @gp_song.artist.gsub(/[^0-9a-z]/i, '') + '_'
-    @internalName += @gp_song.title.gsub(/[^0-9a-z]/i, '')
+    @internal_name = @gp_song.artist.gsub(/[^0-9a-z]/i, '') + '_'
+    @internal_name += @gp_song.title.gsub(/[^0-9a-z]/i, '')
 
     @notes = []
     @chords = []
+    @ebeats = []
+    @sections = []
+    @tone_map = ['ToneBase']
+    @tones = []
 
     @phrases = [
       {
@@ -94,18 +94,18 @@ class SngXmlBuilder
     @phrase_iterations = [
       {
         :@time => 10.000,
-        :@phraseId => 1,
+        :@phraseId => 0,
         :@variation => ''
       }
     ]
 
-    @new_linked_diffs = [
-    {
-      :@levelBreak => -1,
-      :@ratio => 1.0,
-      :@phraseCount => 1,
-      :nld__phrase => [ { :@id => 1} ]
-    }]
+    @new_linked_diffs = []
+    # {
+    #   :@levelBreak => -1,
+    #   :@ratio => 1.0,
+    #   :@phraseCount => 1,
+    #   :nld__phrase => [ { :@id => 1} ]
+    # }]
 
     @linked_diffs = []
     #   {
@@ -133,21 +133,6 @@ class SngXmlBuilder
       }
     ]
 
-    @ebeats = [
-      {
-        :@time => 10.0,
-        :@measure => 0
-      }
-    ]
-
-    @sections = [
-      {
-        :@name => 'chorus',
-        :@number => 1,
-        :@startTime => 12.01
-      }
-    ]
-
     @events = [
       {
         :@time => 10.0,
@@ -167,16 +152,9 @@ class SngXmlBuilder
 
     @hand_shapes = [
       {
-        :@chordId => 4,
+        :@chordId => 0,
         :@endTime => 5.728,
         :@startTime => 5.672
-      }
-    ]
-
-    @tones = [
-      {
-        :@id => 0,
-        :@time => 10.0
       }
     ]
   end
@@ -191,7 +169,7 @@ class SngXmlBuilder
       :offset        => -10.000,
       :centOffset    => 0,
       :songLength    => 0.000,
-      :internalName  => @internalName,
+      :internalName  => @internal_name,
       :songNameSort  => sortable_name(@gp_song.title),
       :startBeat     => 0.000,
       :averageTempo  => @gp_song.bpm,
@@ -240,10 +218,10 @@ class SngXmlBuilder
       :lastConversionDateTime => Time.now.strftime('%F %T'),
 
       :tone__Base => '', # TODO: default values
-      :tone__A => '', # Extract from tab ?
-      :tone__B => '',
-      :tone__C => '',
-      :tone__D => '',
+      :tone__A => @tone_map.count > 1 ? @tone_map[1] : '',
+      :tone__B => @tone_map.count > 2 ? @tone_map[2] : '',
+      :tone__C => @tone_map.count > 3 ? @tone_map[3] : '',
+      :tone__D => @tone_map.count > 4 ? @tone_map[4] : '',
       :tone__Multiplayer => '',
       :tones => carray(:tone, @tones),
 
@@ -357,6 +335,11 @@ class SngXmlBuilder
     }
   end
 
+  def bar2time(barfraction)
+    t = @timerinter.read(barfraction)
+    (t * 1000).round / 1000.0
+  end
+
   def build
     # current offset in tablature
     measure = 0.0
@@ -366,15 +349,45 @@ class SngXmlBuilder
 
       if bar_settings.new_time_signature
         s = bar_settings.new_time_signature
-        @signature = s[:numerator] / s[:denominator] * 4.0
+        @signature = 4.0 * s[:numerator] / s[:denominator]
       end
 
+      @ebeats << {
+        :@time => bar2time(measure),
+        :@measure => (measure + 1).to_i
+      }
+      1.upto(@signature - 1).each do |i|
+        @ebeats << {
+          :@time => bar2time(measure + i / @signature),
+          :@measure => -1
+        }
+      end
+
+      @sections << {
+        :@name => bar_settings.marker[:name],
+        :@number => @sections.count + 1,
+        :@startTime => bar2time(measure)
+      } if bar_settings.marker
+
       bar.voices[:lead].each do |beat|
-        t = (@bar2time.read(measure + measure_fraction) * 1000).round / 1000.0
+        t = bar2time(measure + measure_fraction)
 
         nn = beat.strings.map do |string, note|
           string = @track.strings.count - string.to_i
           create_note(t, string, note)
+        end
+
+        if beat.text
+          idx = @tone_map.index(beat.text)
+          unless idx
+            idx = @tone_map.count
+            @tone_map << beat.text
+          end
+
+          @tones << {
+            :@id => idx,
+            :@time => t
+          }
         end
 
         @notes << nn[0] if nn.count == 1
