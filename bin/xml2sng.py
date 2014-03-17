@@ -11,6 +11,8 @@ import binascii
 import md5
 import json
 
+import sngparser
+
 def coerce_value(v):
     try:
         return int(v)
@@ -532,15 +534,36 @@ def process_metadata(sng):
 def process_sng(sng):
     """Compile SNG."""
 
+    # Sanitize a few things
+    if not xml.has_key('internalName'):
+        xml['internalName'] = 'Toto'
+
+    xml['internal_name'] = xml.internalName.lower()
+    xml['arrangement_name'] = xml.arrangement.lower()
+
+    if not xml.has_key('albumNameSort'):
+        xml['albumNameSort'] = xml['albumName']
+    if not xml.has_key('songNameSort'):
+        xml['songNameSort'] = xml['title']
+
+    if not sng.has_key('vocals'):
+        sng['vocals']  = []
+        sng['symbols'] = []
+
+    if not sng.has_key('tones'):
+        sng['tones'] = []
+        sng['toneBase'] = '' # TODO: default value..
+        sng['toneA'] = ''
+        sng['toneB'] = ''
+        sng['toneC'] = ''
+        sng['toneD'] = ''
+        sng['toneMultiplayer'] = ''
+
+    # Let's go
     sng['firstNoteTime']          = 1.0e6
     sng['phraseExtraInfoByLevel'] = []
     sng['actions']                = []
     sng['chordNotes']             = []
-    if not sng.has_key('vocals'):
-        sng['vocals']  = []
-        sng['symbols'] = []
-    if not sng.has_key('tones'):
-        sng['tones'] = []
 
     process_ebeats(sng)
 
@@ -556,14 +579,6 @@ def process_sng(sng):
     for nld in sng.newLinkedDiffs:
         nld.nld_phrase = [x.id for x in nld.nld_phrase]
 
-    # TONE_MAPPING = {}
-    # TONE_MAPPING[sng.tonea] = 0
-    # TONE_MAPPING[sng.toneb] = 1
-    # TONE_MAPPING[sng.tonec] = 2
-    # TONE_MAPPING[sng.toned] = 3
-    # for tone in sng.tones:
-    #     tone['id'] = TONE_MAPPING[tone.name]
-
     sng['dnas'] = []
     for event in sng.events:
         if DNA_MAPPING.has_key(event.code):
@@ -576,8 +591,6 @@ def process_sng(sng):
         process_level(sng, level)
 
     process_metadata(sng)
-
-    process_json(sng)
 
 
 JSON_TEMPLATE = """{
@@ -595,8 +608,7 @@ JSON_TEMPLATE = """{
         "ArtistNameSort": "%(artistNameSort)s",
         "BlockAsset": "urn:emergent-world:%(internal_name)s",
         "CentOffset": %(centOffset)s,
-        "Chords": {
-        },
+        "Chords": %(chordsJSON)s,
         "ChordTemplates": %(chordTemplatesJSON)s,
         "DLC": true,
         "DLCKey": "%(internalName)s",
@@ -661,11 +673,10 @@ JSON_TEMPLATE = """{
         "SongNameSort": "%(songNameSort)s",
         "SongOffset": %(offset)s,
         "SongPartition": %(part)s,
-        "SongXml": "urn:application:xml:%(internal_name)s_combo",
+        "SongXml": "urn:application:xml:%(internal_name)s_%(arrangement_name)s",
         "SongYear": %(albumYear)s,
         "TargetScore": %(targetScore)s,
-        "Techniques": {
-        },
+        "Techniques": %(techniquesJSON)s,
         "Tone_A": "%(toneA)s",
         "Tone_B": "%(toneB)s",
         "Tone_Base": "%(toneBase)s",
@@ -690,20 +701,10 @@ def indent(t, value=8):
 def json_helper(o):
   return indent(json.dumps(o, separators=(',', ': '), sort_keys=True, indent=2))
 
-def process_json(sng):
+def build_json(sng):
     sng['entry_id'] = md5.new(str(sng)).hexdigest().upper()
 
-    # Should be already filled...
-    if sng.title == {}:
-        sng['internalName'] = sng.fileName
-
-    if sng.internalName == {}:
-        sng['internalName'] = sng.title
-
-    sng['internal_name'] = sng.internalName.lower()
-    sng['arrangement_name'] = sng.arrangement.lower()
-
-    # TODO arrangementProperties.routeMask is missing
+    # TODO compute routeMask
     sng.arrangementProperties['routeMask'] = 0
     sng['arrangementSort'] = 0
     sng['arrangementType'] = 0
@@ -737,15 +738,6 @@ def process_json(sng):
     sng['songDiffMed'] = 0.5
     sng['songDiffHard'] = 0.5
     sng['songDifficulty'] = sng['songDiffHard']
-
-    # TODO: tones
-    sng['toneBase'] = ''
-    sng['toneA'] = ''
-    sng['toneB'] = ''
-    sng['toneC'] = ''
-    sng['toneD'] = ''
-    sng['toneMultiplayer'] = ''
-    sng['tonesJSON'] = []
 
     sng['arrPropJSON'] = json_helper(sng.arrangementProperties)
 
@@ -790,26 +782,31 @@ def process_json(sng):
         })
     sng['chordTemplatesJSON'] = json_helper(r)
 
-    sng['JSON'] = JSON_TEMPLATE % sng
+    # TODO
+    sng['chordsJSON'] = {}
+    sng['techniquesJSON'] = {}
+    # need to include external tone definitions from tones.py
+    sng['tonesJSON'] = []
+
+    return JSON_TEMPLATE % sng
 
 
 if __name__ == '__main__':
     from docopt import docopt
-    import sngparser
-    import os
 
     args = docopt(__doc__)
 
     for f in args['FILE']:
         print 'Processing', f
         xml = load_rsxml(f)
-        xml['fileName'] = os.path.splitext(os.path.basename(f))[0]
         process_sng(xml)
 
-        fname = xml.internal_name + '_' + xml.arrangement_name + '.sng'
-        fnameJSON = xml.internal_name + '_' + xml.arrangement_name + '.json'
+        basename = xml['internal_name'] + '_' + xml['arrangement_name']
 
+        fname = basename + '.sng'
         with open(fname, 'wb') as fstream:
             fstream.write(sngparser.SONG.build(xml))
-        with open(fnameJSON, 'w') as fstream:
-            fstream.write(xml.JSON)
+
+        fname = basename + '.json'
+        with open(fname, 'w') as fstream:
+            fstream.write(build_json(xml))

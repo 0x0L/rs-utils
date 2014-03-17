@@ -68,6 +68,9 @@ class SngXmlBuilder
     @track = track
     @bar2time = sync_data
 
+    @internalName = @gp_song.artist.gsub(/[^0-9a-z]/i, '') + '_'
+    @internalName += @gp_song.title.gsub(/[^0-9a-z]/i, '')
+
     @notes = []
     @chords = []
 
@@ -156,6 +159,13 @@ class SngXmlBuilder
         :@startTime => 5.672
       }
     ]
+
+    @tones = [
+      {
+        :@id => 0,
+        :@time => 10.0
+      }
+    ]
   end
 
   def buildXML
@@ -168,18 +178,18 @@ class SngXmlBuilder
       :offset        => -10.000,
       :centOffset    => 0,
       :songLength    => 0.000,
-      :internalName  => '',
-      :songNameSort  => '',
+      :internalName  => @internalName,
+      :songNameSort  => sortable_name(@gp_song.title),
       :startBeat     => 0.000,
       :averageTempo  => @gp_song.bpm,
       :tuning        => compute_tuning(@track.strings),
       :capo          => @track.capo,
       :artistName    => @gp_song.artist,
-      :artistNameSort => '',
+      :artistNameSort => sortable_name(@gp_song.artist),
       :albumName     => @gp_song.album,
-      :albumNameSort => '',
-      :albumYear     => @gp_song.copyright,
-      :albumArt      => '',
+      :albumNameSort => sortable_name(@gp_song.album),
+      :albumYear     => @gp_song.copyright.to_i,
+      :albumArt      => '', # TODO: default value based on name
       :crowdSpeed    => 1,
       :arrangementProperties => {
         :@represent         => 1,
@@ -216,16 +226,13 @@ class SngXmlBuilder
       },
       :lastConversionDateTime => Time.now.strftime('%F %T'),
 
-      :toneA => '',
+      :toneBase => '', # TODO: default values
+      :toneA => '', # Extract from tab ?
       :toneB => '',
       :toneC => '',
       :toneD => '',
-      :tones => [{
-        # :tone => {
-        #   :@id => 0,
-        #   :@time => 10.0
-        # }
-      }],
+      :toneMultiplayer => '',
+      :tones => carray(:tone, @tones),
 
       :phrases => carray(:phrase, @phrases),
 
