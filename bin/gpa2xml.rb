@@ -3,10 +3,13 @@
 # Takes a Go PlayAlong XML file with synchronization data and Guitar Pro tab
 # and produces Rocksmith 2014 XML tracks.
 
+# Put sync points on signature change !
 # Metadata comes from the guitar pro tablature
 # Copyright => Year
 # AlbumArt =>
 # Tones => Note.text defines tone name and tone change
+# base tone is 'ToneBase'
+# cent offset ??
 
 require 'rexml/document'
 require 'interpolator'
@@ -22,6 +25,19 @@ def GuitarProHelper.note_to_digit(note)
 end
 
 ## HELPERS
+
+def time_interpolator(sync)
+  s = sync.split '#'
+  s.shift
+
+  t = s.map { |u| u.split ';' }
+
+  m = t.map do |time, bar, bar_fraction, beat_duration|
+    { bar.to_f + bar_fraction.to_f => time.to_f / 1000.0 }
+  end
+
+  Interpolator::Table.new m.reduce Hash.new, :merge
+end
 
 I_DURATIONS = GuitarProHelper::DURATIONS.invert
 
@@ -51,8 +67,9 @@ def compute_tuning(gp_tuning)
   }
 end
 
-## OVERVIEW
+## MAIN STUFF
 
+# TODO: add time offset ?
 # Build notes and chords
 # anchors
 # handshapes
@@ -60,26 +77,23 @@ end
 # fingering
 # arrangement properties
 
-# TODO
-# cent offset is missing from GP
-# compute internalName, sort names
-# ToneA, ..., D
-
 class SngXmlBuilder
-  def initialize(gp_song, track, sync_data)
-    @gp_song = gp_song
+  def initialize(song, track, timefun)
+    @song = song
     @track = track
-    @timerinter = sync_data
+    @timerinter = timefun
 
-    @internal_name = @gp_song.artist.gsub(/[^0-9a-z]/i, '') + '_'
-    @internal_name += @gp_song.title.gsub(/[^0-9a-z]/i, '')
+    @internal_name = @song.artist.gsub(/[^0-9a-z]/i, '') + '_'
+    @internal_name += @song.title.gsub(/[^0-9a-z]/i, '')
+
+    @signature = 4.0 # 4/4 default signature
 
     @notes = []
     @chords = []
     @ebeats = []
     @sections = []
-    @tone_map = ['ToneBase']
     @tones = []
+    @tone_map = ['ToneBase']
 
     @phrases = [
       {
@@ -98,21 +112,6 @@ class SngXmlBuilder
         :@variation => ''
       }
     ]
-
-    @new_linked_diffs = []
-    # {
-    #   :@levelBreak => -1,
-    #   :@ratio => 1.0,
-    #   :@phraseCount => 1,
-    #   :nld__phrase => [ { :@id => 1} ]
-    # }]
-
-    @linked_diffs = []
-    #   {
-    #     :@childId => 1,
-    #     :@parentId => 1
-    #   }
-    # ]
 
     @chord_templates = [
       {
@@ -159,29 +158,182 @@ class SngXmlBuilder
     ]
   end
 
-  def buildXML
+  def fraction_of_bar(duration)
+    # this name is a bit confusing
+    1.0 / (2**Integer(I_DURATIONS[duration])) / @signature
+  end
+
+  def bar2time(barfraction)
+    t = @timerinter.read(barfraction)
+    (t * 1000).round / 1000.0
+  end
+
+  def new_note(string, note)
+    bb = []
+    if note.bend
+      note.bend[:points].each do |b|
+        bb << {
+          :@time => @time + b[:time] / 1000.0,
+          :@step => b[:pitch_alteration] / 100.0
+        } # unless b[:time] == 0 and b[:pitch_alteration] == 0
+      end
+    end
+
+    if note.slide
+    end
+
+    if note.hammer_or_pull
+    end
+
+    if note.grace
+    end
+
+    # sustain
+    # hammer / pull / hopo
+    # slides
+
+    n = {
+      :@time => @time,
+      # :@linkNext => 0,
+      :@accent => note.accentuated ? 1 : 0,
+      :@bend => bb.count > 0 ? 1 : 0,
+      :@fret => note.fret,
+      # :@hammerOn => 0,
+      :@harmonic => note.harmonic != :none ? 1 : 0, # note.harmonic != :pinch
+      # :@hopo => 0,
+      :@ignore => 0,
+      :@leftHand => -1,
+      :@mute => note.type == :dead ? 1 : 0,
+      :@palmMute => note.palm_mute ? 1 : 0,
+      :@pluck => -1,
+      # :@pullOff => 0,
+      :@slap => -1,
+      # :@slideTo => -1,
+      :@string => string,
+      # :@sustain => 1.130,
+      :@tremolo => note.tremolo ? 1 : 0,
+      :@harmonicPinch => note.harmonic == :pinch ? 1 : 0,
+      :@pickDirection => 0,
+      :@rightHand => -1,
+      # :@slideUnpitchTo => -1,
+      :@tap => 0,
+      :@vibrato => 0,
+      :bendValues => carray(:bendValue, bb)
+    }
+    n
+  end
+
+  def new_chord(notes)
+    # TODO: bendValues
+    notes.each { |n| n.delete(:bendValues) }
+
     {
-      :@version      => 8,
-      :title         => @gp_song.title,
-      :arrangement   => @track.name,
-      :wavefilepath  => '',
-      :part          => 1,
-      :offset        => -10.000,
-      :centOffset    => 0,
-      :songLength    => 0.000,
-      :internalName  => @internal_name,
-      :songNameSort  => sortable_name(@gp_song.title),
-      :startBeat     => 0.000,
-      :averageTempo  => @gp_song.bpm,
-      :tuning        => compute_tuning(@track.strings),
-      :capo          => @track.capo,
-      :artistName    => @gp_song.artist,
-      :artistNameSort => sortable_name(@gp_song.artist),
-      :albumName     => @gp_song.album,
-      :albumNameSort => sortable_name(@gp_song.album),
-      :albumYear     => @gp_song.copyright.to_i,
-      :albumArt      => '', # TODO: default value based on name
-      :crowdSpeed    => 1,
+      :@time => @time,
+      # :@linkNext => 0,
+      :@accent => (notes.any? { |n| n[:@accent] == 1 }) ? 1 : 0,
+      # :@chordId => 12,
+      # :@fretHandMute => 0,
+      # :@highDensity => 0, # criterion needed here
+      :@ignore => notes.any? { |n| n[:@ignore] == 1 } ? 1 : 0,
+      :@palmMute => notes.all? { |n| n[:@palmMute] == 1 } ? 1 : 0,
+      :@hopo => notes.any? { |n| n[:@hopo] == 1 } ? 1 : 0,
+      # :@strum => "down", # in the beat actually
+      :chordNote => notes
+    }
+  end
+
+  def new_bar(bar_settings)
+    if bar_settings.new_time_signature
+      s = bar_settings.new_time_signature
+      @signature = 4.0 * s[:numerator] / s[:denominator]
+    end
+
+    @sections << {
+      :@name => bar_settings.marker[:name],
+      :@number => @sections.count + 1,
+      :@startTime => bar2time(@measure)
+    } if bar_settings.marker
+
+    @ebeats << {
+      :@time => bar2time(@measure),
+      :@measure => (@measure + 1).to_i
+    }
+    1.upto(@signature - 1).each do |i|
+      @ebeats << {
+        :@time => bar2time(@measure + i / @signature),
+        :@measure => -1
+      }
+    end
+  end
+
+  def new_tone_change(tone_name)
+    idx = @tone_map.index(tone_name)
+    unless idx
+      idx = @tone_map.count
+      @tone_map << tone_name
+    end
+
+    @tones << {
+      :@id => idx,
+      :@time => @time
+    }
+  end
+
+  def new_gp_beat(beat)
+    new_tone_change beat.text if beat.text
+
+    ns = beat.strings.map do |string, note|
+      string = @track.strings.count - string.to_i
+      new_note string, note
+    end
+    @notes << ns[0] if ns.count == 1
+    @chords << new_chord(ns) if ns.count > 1
+
+    @previous_notes = ns
+  end
+
+  def run
+    @measure = 0.0
+
+    @track.bars.zip(@song.bars_settings).each do |bar, bar_settings|
+      new_bar bar_settings
+
+      measure_fraction = 0.0
+      bar.voices[:lead].each do |beat|
+        @time = bar2time(@measure + measure_fraction)
+
+        new_gp_beat beat
+
+        measure_fraction += fraction_of_bar(beat.duration)
+      end
+
+      @measure += 1.0
+    end
+  end
+
+  def xml
+    {
+      :@version       => 8,
+      :title          => @song.title,
+      :arrangement    => @track.name,
+      :wavefilepath   => '',
+      :part           => 1,
+      :offset         => -10.000,
+      :centOffset     => 0,
+      :songLength     => 0.000,
+      :internalName   => @internal_name,
+      :songNameSort   => sortable_name(@song.title),
+      :startBeat      => 0.000,
+      :averageTempo   => @song.bpm,
+      :tuning         => compute_tuning(@track.strings),
+      :capo           => @track.capo,
+      :artistName     => @song.artist,
+      :artistNameSort => sortable_name(@song.artist),
+      :albumName      => @song.album,
+      :albumNameSort  => sortable_name(@song.album),
+      :albumYear      => @song.copyright.to_i,
+      :albumArt       => '',
+      :crowdSpeed     => 1,
       :arrangementProperties => {
         :@represent         => 1,
         :@bonusArr          => 0,
@@ -217,32 +369,23 @@ class SngXmlBuilder
       },
       :lastConversionDateTime => Time.now.strftime('%F %T'),
 
-      :tone__Base => '', # TODO: default values
       :tone__A => @tone_map.count > 1 ? @tone_map[1] : '',
       :tone__B => @tone_map.count > 2 ? @tone_map[2] : '',
       :tone__C => @tone_map.count > 3 ? @tone_map[3] : '',
       :tone__D => @tone_map.count > 4 ? @tone_map[4] : '',
+      :tone__Base => '', # TODO: default values
       :tone__Multiplayer => '',
       :tones => carray(:tone, @tones),
 
       :phrases => carray(:phrase, @phrases),
-
       :phraseIterations => carray(:phraseIteration, @phrase_iterations),
-
-      :newLinkedDiffs => carray(:newLinkedDiff, @new_linked_diffs),
-
-      :linkedDiffs => carray(:linkedDiff, @linked_diffs),
-
-      :phraseProperties => [],
-
+      :newLinkedDiffs => carray(:newLinkedDiff, []),
+      :linkedDiffs => carray(:linkedDiff, []),
+      :phraseProperties => carray(:phrase, []),
       :chordTemplates => carray(:chordTemplate, @chord_templates),
-
       :fretHandMuteTemplates => carray(:fretHandMuteTemplate, []),
-
       :ebeats => carray(:ebeat, @ebeats),
-
       :sections => carray(:section, @sections),
-
       :events => carray(:event, @events),
 
       :transcriptionTrack => { :@difficulty => -1 },
@@ -259,179 +402,25 @@ class SngXmlBuilder
       ])
     }
   end
-
-  def create_note(time, string, note)
-    bb = []
-    if note.bend
-      # TODO: skip first if step == 0 ?
-      note.bend[:points].each do |b|
-        bb << {
-          :@time => b[:time],
-          :@step => b[:pitch_alteration] / 100.0
-        }
-      end
-    end
-
-    if note.slide
-    end
-
-    if note.hammer_or_pull
-    end
-
-    if note.grace
-    end
-
-    # sustain
-    # hammer / pull / hopo
-    # slides
-
-    n = {
-      :@time => time,
-      # :@linkNext => 0,
-      :@accent => note.accentuated ? 1 : 0,
-      :@bend => bb.count > 0 ? 1 : 0,
-      :@fret => note.fret,
-      # :@hammerOn => 0,
-      :@harmonic => note.harmonic != :none ? 1 : 0, # note.harmonic != :pinch
-      # :@hopo => 0,
-      :@ignore => 0,
-      :@leftHand => -1,
-      :@mute => note.type == :dead ? 1 : 0,
-      :@palmMute => note.palm_mute ? 1 : 0,
-      :@pluck => -1,
-      # :@pullOff => 0,
-      :@slap => -1,
-      # :@slideTo => -1,
-      :@string => string,
-      # :@sustain => 1.130,
-      :@tremolo => note.tremolo ? 1 : 0,
-      :@harmonicPinch => note.harmonic == :pinch ? 1 : 0,
-      :@pickDirection => 0,
-      :@rightHand => -1,
-      # :@slideUnpitchTo => -1,
-      :@tap => 0,
-      :@vibrato => 0,
-      :bendValues => carray(:bendValue, bb)
-    }
-    n
-  end
-
-  def create_chord(time, notes)
-    # TODO: bendValues
-    notes.each { |n| n.delete(:bendValues) }
-
-    {
-      :@time => time,
-      # :@linkNext => 0,
-      :@accent => (notes.any? { |n| n[:@accent] == 1 }) ? 1 : 0,
-      # :@chordId => 12,
-      # :@fretHandMute => 0,
-      # :@highDensity => 0, # criterion needed here
-      :@ignore => notes.any? { |n| n[:@ignore] == 1 } ? 1 : 0,
-      :@palmMute => notes.all? { |n| n[:@palmMute] == 1 } ? 1 : 0,
-      :@hopo => notes.any? { |n| n[:@hopo] == 1 } ? 1 : 0,
-      # :@strum => "down", # in the beat actually
-      :chordNote => notes
-    }
-  end
-
-  def bar2time(barfraction)
-    t = @timerinter.read(barfraction)
-    (t * 1000).round / 1000.0
-  end
-
-  def build
-    # current offset in tablature
-    measure = 0.0
-
-    @track.bars.zip(@gp_song.bars_settings).each do |bar, bar_settings|
-      measure_fraction = 0.0
-
-      if bar_settings.new_time_signature
-        s = bar_settings.new_time_signature
-        @signature = 4.0 * s[:numerator] / s[:denominator]
-      end
-
-      @ebeats << {
-        :@time => bar2time(measure),
-        :@measure => (measure + 1).to_i
-      }
-      1.upto(@signature - 1).each do |i|
-        @ebeats << {
-          :@time => bar2time(measure + i / @signature),
-          :@measure => -1
-        }
-      end
-
-      @sections << {
-        :@name => bar_settings.marker[:name],
-        :@number => @sections.count + 1,
-        :@startTime => bar2time(measure)
-      } if bar_settings.marker
-
-      bar.voices[:lead].each do |beat|
-        t = bar2time(measure + measure_fraction)
-
-        nn = beat.strings.map do |string, note|
-          string = @track.strings.count - string.to_i
-          create_note(t, string, note)
-        end
-
-        if beat.text
-          idx = @tone_map.index(beat.text)
-          unless idx
-            idx = @tone_map.count
-            @tone_map << beat.text
-          end
-
-          @tones << {
-            :@id => idx,
-            :@time => t
-          }
-        end
-
-        @notes << nn[0] if nn.count == 1
-        @chords << create_chord(t, nn) if nn.count > 1
-
-        measure_fraction += fraction_in_bar(beat.duration)
-      end
-
-      measure += 1.0
-    end
-  end
-
-  def fraction_in_bar(d)
-    1.0 / (2**Integer(I_DURATIONS[d])) / @signature
-  end
-end
-
-def time_interpolator(sync_data)
-  s = sync_data.split '#'
-  s.shift
-
-  t = s.map { |u| u.split ';' }
-
-  m = t.map do |time, bar, bar_fraction, beat_duration|
-    { bar.to_f + bar_fraction.to_f => time.to_f / 1000.0 }
-  end
-
-  Interpolator::Table.new m.reduce Hash.new, :merge
 end
 
 ## SCRIPT
+$debug = 1 unless ARGV[0]
+ARGV[0] = '../test/tab.xml' unless ARGV[0]
+
+ARGV[0] = File.realpath ARGV[0]
+dir = File.dirname ARGV[0]
 
 gpa_xml = REXML::Document.new File.new(ARGV[0], 'r')
 score_url = gpa_xml.elements['track'].elements['scoreUrl'].text
 # mp3_url = gpa_xml.elements['track'].elements['mp3Url'].text
-sync_data = gpa_xml.elements['track'].elements['sync'].text
+sync = gpa_xml.elements['track'].elements['sync'].text
 
 # TODO: if no sync data use bpm
-
-tabsong = GuitarProParser.read_file(score_url)
+tabsong = GuitarProParser.read_file(dir + File::SEPARATOR + score_url)
 
 tabsong.tracks[0, 1].each do |track|
-  xml = SngXmlBuilder.new tabsong, track, time_interpolator(sync_data)
-  xml.build
-
-  puts Gyoku.xml :song => xml.buildXML
+  builder = SngXmlBuilder.new tabsong, track, time_interpolator(sync)
+  builder.run
+  puts Gyoku.xml :song => builder.xml unless $debug == 1
 end
