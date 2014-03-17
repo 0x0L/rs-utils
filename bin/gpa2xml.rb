@@ -3,7 +3,7 @@
 # Takes a Go PlayAlong XML file with synchronization data and Guitar Pro tab
 # and produces Rocksmith 2014 XML tracks.
 
-# Put sync points on signature change !
+# Put sync points on signature change ! Use expand repeats !
 # Metadata comes from the guitar pro tablature
 # Copyright => Year
 # AlbumArt =>
@@ -25,6 +25,8 @@ def GuitarProHelper.note_to_digit(note)
 end
 
 ## HELPERS
+
+TONEBASE = 'ToneBase'
 
 def time_interpolator(sync)
   s = sync.split '#'
@@ -76,6 +78,7 @@ end
 # chord templates
 # fingering
 # arrangement properties
+# section played number
 
 class SngXmlBuilder
   def initialize(song, track, timefun)
@@ -93,7 +96,7 @@ class SngXmlBuilder
     @ebeats = []
     @sections = []
     @tones = []
-    @tone_map = ['ToneBase']
+    @tone_map = [TONEBASE]
 
     @phrases = [
       {
@@ -248,6 +251,8 @@ class SngXmlBuilder
       @signature = 4.0 * s[:numerator] / s[:denominator]
     end
 
+    @start_reapeat_bar = @bar_idx if bar_settings.has_start_of_repeat
+
     @sections << {
       :@name => bar_settings.marker[:name],
       :@number => @sections.count + 1,
@@ -294,8 +299,11 @@ class SngXmlBuilder
 
   def run
     @measure = 0.0
+    @bar_idx = 0 # to handle repeats
 
-    @track.bars.zip(@song.bars_settings).each do |bar, bar_settings|
+    u = @track.bars.zip(@song.bars_settings)
+    while @bar_idx < u.count
+      bar, bar_settings = u[@bar_idx]
       new_bar bar_settings
 
       measure_fraction = 0.0
@@ -307,6 +315,19 @@ class SngXmlBuilder
         measure_fraction += fraction_of_bar(beat.duration)
       end
 
+      if bar_settings.has_end_of_repeat
+        @repeats_count = bar_settings.repeats_count unless @repeats_count
+      end
+
+      if bar_settings.has_end_of_repeat && @repeats_count > 0
+        @bar_idx = @start_reapeat_bar - 1
+        @repeats_count -= 1
+      elsif bar_settings.has_end_of_repeat && @repeats_count == 0
+        @repeats_count = nil
+        @start_reapeat_bar = nil
+      end
+
+      @bar_idx += 1
       @measure += 1.0
     end
   end
@@ -405,7 +426,7 @@ class SngXmlBuilder
 end
 
 ## SCRIPT
-$debug = 1 unless ARGV[0]
+debug = 1 unless ARGV[0]
 ARGV[0] = '../test/tab.xml' unless ARGV[0]
 
 ARGV[0] = File.realpath ARGV[0]
@@ -422,5 +443,5 @@ tabsong = GuitarProParser.read_file(dir + File::SEPARATOR + score_url)
 tabsong.tracks[0, 1].each do |track|
   builder = SngXmlBuilder.new tabsong, track, time_interpolator(sync)
   builder.run
-  puts Gyoku.xml :song => builder.xml unless $debug == 1
+  puts Gyoku.xml :song => builder.xml unless debug == 1
 end
