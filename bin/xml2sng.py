@@ -6,6 +6,9 @@ Generate JSON manifest and binary SNG for Rocksmith 2014 from source SNG XML.
 Usage: xml2sng.py FILE...
 """
 
+# TODO: specify a tone library definition to import from
+# tone library is output from tones.py
+
 from xml.etree import cElementTree as ET
 import binascii
 import md5

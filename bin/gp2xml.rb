@@ -1,18 +1,27 @@
 #!/usr/bin/env ruby
 
+# Takes a Go PlayAlong XML file with synchronization data and Guitar Pro tab
+# and produces Rocksmith 2014 XML tracks.
+
+# Metadata comes from the guitar pro tablature
+# Copyright => Year
+# AlbumArt =>
+# Tones => Note.text defines tone name and tone change
+
 require 'rexml/document'
 require 'interpolator'
 require 'guitar_pro_parser'
 require 'gyoku'
 require 'matrix'
 
-# Converts note to its digit representation
-# To be removed since it exists in master for gem
+# To be removed since it already exists in master for guitar_pro_parser
 def GuitarProHelper.note_to_digit(note)
   result = 0
   result += 1 until GuitarProHelper.digit_to_note(result) == note
   result
 end
+
+## HELPERS
 
 I_DURATIONS = GuitarProHelper::DURATIONS.invert
 
@@ -20,13 +29,11 @@ STANDARD_TUNING = %w(E3 A3 D4 G4 B4 E5).map do |n|
   GuitarProHelper.note_to_digit(n)
 end
 
-## HELPERS
-
 def sortable_name(n)
   n.sub(/^(the|a|an)\s+/i, '').capitalize
 end
 
-# Helper for counted arrays
+# Counted arrays
 def carray(symbol, arr)
   {
     :@count => arr.count,
@@ -282,49 +289,42 @@ class SngXmlBuilder
     end
 
     if note.slide
-      # puts time, note.inspect
     end
 
     if note.hammer_or_pull
-      # puts time, note.inspect
-      # puts note.hammer_or_pull
     end
 
     if note.grace
-      # puts time, note.grace
     end
 
-    # puts note.fingers[:left] if note.fingers[:left]
-    # puts note.fingers[:right] if note.fingers[:right]
-
-    # what needs to look at the next note
     # sustain
-    # hammer / pull
+    # hammer / pull / hopo
+    # slides
 
     n = {
       :@time => time,
-      #     :@linkNext => 0,
+      # :@linkNext => 0,
       :@accent => note.accentuated ? 1 : 0,
       :@bend => bb.count > 0 ? 1 : 0,
       :@fret => note.fret,
-      #     :@hammerOn => 0,
+      # :@hammerOn => 0,
       :@harmonic => note.harmonic != :none ? 1 : 0, # note.harmonic != :pinch
-      # :@hopo => 0, ## ???
+      # :@hopo => 0,
       :@ignore => 0,
       :@leftHand => -1,
       :@mute => note.type == :dead ? 1 : 0,
       :@palmMute => note.palm_mute ? 1 : 0,
       :@pluck => -1,
-      #     :@pullOff => 0,
+      # :@pullOff => 0,
       :@slap => -1,
-      #     :@slideTo => -1,
+      # :@slideTo => -1,
       :@string => string,
-      #     :@sustain => 1.130,
+      # :@sustain => 1.130,
       :@tremolo => note.tremolo ? 1 : 0,
       :@harmonicPinch => note.harmonic == :pinch ? 1 : 0,
       :@pickDirection => 0,
       :@rightHand => -1,
-      #     :@slideUnpitchTo => -1,
+      # :@slideUnpitchTo => -1,
       :@tap => 0,
       :@vibrato => 0,
       :bendValues => carray(:bendValue, bb)
@@ -333,23 +333,27 @@ class SngXmlBuilder
   end
 
   def create_chord(time, notes)
+    # TODO: bendValues
+    notes.each { |n| n.delete(:bendValues) }
+
     {
-      :@time => bar2time(time),
+      :@time => time,
       # :@linkNext => 0,
-      # :@accent => 0,
+      :@accent => (notes.any? { |n| n[:@accent] == 1 }) ? 1 : 0,
       # :@chordId => 12,
       # :@fretHandMute => 0,
-      # :@highDensity => 0,
-      # :@ignore => 0,
-      # :@palmMute => 0,
-      # :@hopo => 0,
-      # :@strum => "down",
-      :@chordNotes => notes # TODO: no bend values
+      # :@highDensity => 0, # criterion needed here
+      :@ignore => notes.any? { |n| n[:@ignore] == 1 } ? 1 : 0,
+      :@palmMute => notes.all? { |n| n[:@palmMute] == 1 } ? 1 : 0,
+      :@hopo => notes.any? { |n| n[:@hopo] == 1 } ? 1 : 0,
+      # :@strum => "down", # in the beat actually
+      :chordNote => notes
     }
   end
 
   def build
-    measure = 0
+    # current offset in tablature
+    measure = 0.0
 
     @track.bars.zip(@gp_song.bars_settings).each do |bar, bar_settings|
       measure_fraction = 0.0
@@ -360,19 +364,17 @@ class SngXmlBuilder
       end
 
       bar.voices[:lead].each do |beat|
-        t = fraction_in_bar(beat.duration)
+        t = (@bar2time.read(measure + measure_fraction) * 1000).round / 1000.0
 
         nn = beat.strings.map do |string, note|
           string = @track.strings.count - string.to_i
-          create_note(@bar2time.read(measure + measure_fraction), string, note)
+          create_note(t, string, note)
         end
 
-        @notes << nn if nn.count == 1
-        # Chords
-        # cc = create_chord(measure + measure_fraction, nn) if nn.count > 1
-        # puts "#{cc}" if nn.count > 1
+        @notes << nn[0] if nn.count == 1
+        @chords << create_chord(t, nn) if nn.count > 1
 
-        measure_fraction += t
+        measure_fraction += fraction_in_bar(beat.duration)
       end
 
       measure += 1.0
