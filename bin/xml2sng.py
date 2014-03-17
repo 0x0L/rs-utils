@@ -555,12 +555,12 @@ def process_sng(sng):
 
     if not sng.has_key('tones'):
         sng['tones'] = []
-        sng['toneBase'] = '' # TODO: default value..
-        sng['toneA'] = ''
-        sng['toneB'] = ''
-        sng['toneC'] = ''
-        sng['toneD'] = ''
-        sng['toneMultiplayer'] = ''
+        sng['tone_Base'] = '' # TODO: default value..
+        sng['tone_A'] = ''
+        sng['tone_B'] = ''
+        sng['tone_C'] = ''
+        sng['tone_D'] = ''
+        sng['tone_Multiplayer'] = ''
 
     # Let's go
     sng['firstNoteTime']          = 1.0e6
@@ -680,12 +680,12 @@ JSON_TEMPLATE = """{
         "SongYear": %(albumYear)s,
         "TargetScore": %(targetScore)s,
         "Techniques": %(techniquesJSON)s,
-        "Tone_A": "%(toneA)s",
-        "Tone_B": "%(toneB)s",
-        "Tone_Base": "%(toneBase)s",
-        "Tone_C": "%(toneC)s",
-        "Tone_D": "%(toneD)s",
-        "Tone_Multiplayer": "%(toneMultiplayer)s",
+        "Tone_A": "%(tone_A)s",
+        "Tone_B": "%(tone_B)s",
+        "Tone_Base": "%(tone_Base)s",
+        "Tone_C": "%(tone_C)s",
+        "Tone_D": "%(tone_D)s",
+        "Tone_Multiplayer": "%(tone_Multiplayer)s",
         "Tones": %(tonesJSON)s,
         "Tuning": %(tuningJSON)s,
         "PersistentID": "%(entry_id)s"

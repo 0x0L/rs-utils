@@ -99,14 +99,20 @@ class SngXmlBuilder
       }
     ]
 
-    @new_linked_diffs = [{ :@id => 1 }]
+    @new_linked_diffs = [
+    {
+      :@levelBreak => -1,
+      :@ratio => 1.0,
+      :@phraseCount => 1,
+      :nld__phrase => [ { :@id => 1} ]
+    }]
 
-    @linked_diffs = [
-      {
-        :@childId => 1,
-        :@parentId => 1
-      }
-    ]
+    @linked_diffs = []
+    #   {
+    #     :@childId => 1,
+    #     :@parentId => 1
+    #   }
+    # ]
 
     @chord_templates = [
       {
@@ -233,19 +239,19 @@ class SngXmlBuilder
       },
       :lastConversionDateTime => Time.now.strftime('%F %T'),
 
-      :toneBase => '', # TODO: default values
-      :toneA => '', # Extract from tab ?
-      :toneB => '',
-      :toneC => '',
-      :toneD => '',
-      :toneMultiplayer => '',
+      :tone__Base => '', # TODO: default values
+      :tone__A => '', # Extract from tab ?
+      :tone__B => '',
+      :tone__C => '',
+      :tone__D => '',
+      :tone__Multiplayer => '',
       :tones => carray(:tone, @tones),
 
       :phrases => carray(:phrase, @phrases),
 
       :phraseIterations => carray(:phraseIteration, @phrase_iterations),
 
-      :newLinkedDiffs => carray(:nld_phrase, @new_linked_diffs),
+      :newLinkedDiffs => carray(:newLinkedDiff, @new_linked_diffs),
 
       :linkedDiffs => carray(:linkedDiff, @linked_diffs),
 
