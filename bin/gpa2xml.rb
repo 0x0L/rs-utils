@@ -4,7 +4,9 @@
 # and produces Rocksmith 2014 XML tracks.
 
 # Put sync points on signature change ! Use expand repeats !
-# Metadata comes from the guitar pro tablature
+# Section are markers
+# Phrase are double bars
+# Anchors are determined by fingering
 # Copyright => Year
 # AlbumArt =>
 # Tones => Note.text defines tone name and tone change
@@ -72,13 +74,14 @@ end
 ## MAIN STUFF
 
 # TODO: add time offset ?
-# Build notes and chords
+# Build notes and chords, mostly effects
 # anchors
 # handshapes
 # chord templates
 # fingering
 # arrangement properties
 # section played number
+# alternate endings ?
 
 class SngXmlBuilder
   def initialize(song, track, timefun)

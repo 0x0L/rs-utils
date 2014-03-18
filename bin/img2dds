@@ -3,7 +3,7 @@
 # Convert an image to 3 DDS image suitable for Rocksmith 2014 customs
 #
 SCRIPTPATH=$0
-if [ $(uname) != "Darwin" ]; then
+if [ "$(uname)" != "Darwin" ]; then
     SCRIPTPATH=$(readlink -f "$0")
 fi
 THISPATH=$(cd "$(dirname "$SCRIPTPATH")"; pwd)
@@ -13,5 +13,5 @@ BASENAME="${BASENAME%.*}"
 
 for SIZE in 64 128 256
 do
-    WINEDEBUG=-all wine "$THISPATH/nvdxt.exe" -file $1 -output ${BASENAME}_$SIZE -prescale $SIZE $SIZE -nomipmap -RescaleBox -dxt1a
+    WINEDEBUG=-all wine "$THISPATH/nvdxt.exe" -file "$1" -output "${BASENAME}_$SIZE" -prescale $SIZE $SIZE -nomipmap -RescaleBox -dxt1a
 done

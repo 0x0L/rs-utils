@@ -15,11 +15,13 @@ Usage:
 from construct import Struct, If, Array, PrefixedArray, Padding, \
     SLInt8, ULInt16, SLInt16, ULInt32, SLInt32, LFloat32, LFloat64, String
 
+
 def array(struct):
     """Standard prefixed arrays."""
     return PrefixedArray(struct, ULInt32('count'))
 
-BEAT = Struct('ebeats',
+BEAT = Struct(
+    'ebeats',
     LFloat32('time'),
     ULInt16('measure'),
     ULInt16('beat'),
@@ -27,7 +29,8 @@ BEAT = Struct('ebeats',
     ULInt32('mask')
 )
 
-PHRASE = Struct('phrases',
+PHRASE = Struct(
+    'phrases',
     SLInt8('solo'),
     SLInt8('disparity'),
     SLInt8('ignore'),
@@ -37,7 +40,8 @@ PHRASE = Struct('phrases',
     String('name', 32, padchar='\x00')
 )
 
-CHORD_TEMPLATE = Struct('chordTemplates',
+CHORD_TEMPLATE = Struct(
+    'chordTemplates',
     ULInt32('mask'),
     SLInt8('fret0'),
     SLInt8('fret1'),
@@ -55,7 +59,8 @@ CHORD_TEMPLATE = Struct('chordTemplates',
     String('chordName', 32, padchar='\x00')
 )
 
-BEND_VALUE = Struct('bendValues',
+BEND_VALUE = Struct(
+    'bendValues',
     LFloat32('time'),
     LFloat32('step'),
     Padding(3),
@@ -63,12 +68,14 @@ BEND_VALUE = Struct('bendValues',
     SLInt8('UNK')
 )
 
-BEND_VALUES_32 = Struct('bendValues32',
+BEND_VALUES_32 = Struct(
+    'bendValues32',
     Array(32, BEND_VALUE),
     ULInt32('usedCount')
 )
 
-CHORD_NOTE = Struct('chordNotes',
+CHORD_NOTE = Struct(
+    'chordNotes',
     Array(6, ULInt32('mask')),
     Array(6, BEND_VALUES_32),
     Array(6, SLInt8('slideTo')),
@@ -76,14 +83,16 @@ CHORD_NOTE = Struct('chordNotes',
     Array(6, SLInt16('vibrato')),
 )
 
-VOCAL = Struct('vocals',
+VOCAL = Struct(
+    'vocals',
     LFloat32('time'),
     SLInt32('note'),
     LFloat32('length'),
     String('lyric', 48, padchar='\x00')
 )
 
-TEXTURE = Struct('textures',
+TEXTURE = Struct(
+    'textures',
     String('fontPath', 128, padchar='\x00'),
     ULInt32('fontPathLength'),
     Padding(4),
@@ -91,26 +100,30 @@ TEXTURE = Struct('textures',
     ULInt32('height')
 )
 
-DEFINITION = Struct('definitions',
+DEFINITION = Struct(
+    'definitions',
     String('utf8', 12, padchar='\x00'),
     Array(4, LFloat32('rect1')),
     Array(4, LFloat32('rect2'))
 )
 
-SYMBOLS = Struct('symbols',
+SYMBOLS = Struct(
+    'symbols',
     array(Array(8, SLInt32('header'))),
     array(TEXTURE),
     array(DEFINITION)
 )
 
-PHRASE_ITERATION = Struct('phraseIterations',
+PHRASE_ITERATION = Struct(
+    'phraseIterations',
     ULInt32('phraseId'),
     LFloat32('time'),
     LFloat32('endTime'),
     Array(3, ULInt32('difficulty')),
 )
 
-PHRASE_EXTRA_INFO_BY_LEVEL = Struct('phraseExtraInfoByLevel',
+PHRASE_EXTRA_INFO_BY_LEVEL = Struct(
+    'phraseExtraInfoByLevel',
     ULInt32('phraseId'),
     ULInt32('difficulty'),
     ULInt32('empty'),
@@ -119,32 +132,38 @@ PHRASE_EXTRA_INFO_BY_LEVEL = Struct('phraseExtraInfoByLevel',
     Padding(1)
 )
 
-NEW_LINKED_DIFF = Struct('newLinkedDiffs',
+NEW_LINKED_DIFF = Struct(
+    'newLinkedDiffs',
     SLInt32('levelBreak'),
     array(ULInt32('nld_phrase'))
 )
 
-ACTION = Struct('actions',
+ACTION = Struct(
+    'actions',
     LFloat32('time'),
     String('name', 256, padchar='\x00')
 )
 
-EVENT = Struct('events',
+EVENT = Struct(
+    'events',
     LFloat32('time'),
     String('code', 256, padchar='\x00')
 )
 
-TONE = Struct('tones',
+TONE = Struct(
+    'tones',
     LFloat32('time'),
     ULInt32('id')
 )
 
-DNA = Struct('dnas',
+DNA = Struct(
+    'dnas',
     LFloat32('time'),
     ULInt32('id')
 )
 
-SECTION = Struct('sections',
+SECTION = Struct(
+    'sections',
     String('name', 32, padchar='\x00'),
     ULInt32('number'),
     LFloat32('startTime'),
@@ -154,7 +173,8 @@ SECTION = Struct('sections',
     Array(36, SLInt8('stringMask'))
 )
 
-ANCHOR = Struct('anchors',
+ANCHOR = Struct(
+    'anchors',
     LFloat32('time'),
     LFloat32('endTime'),
     LFloat32('UNK_time'),
@@ -164,13 +184,15 @@ ANCHOR = Struct('anchors',
     ULInt32('phraseIterationId'),
 )
 
-ANCHOR_EXTENSION = Struct('anchorExtensions',
+ANCHOR_EXTENSION = Struct(
+    'anchorExtensions',
     LFloat32('time'),
     SLInt8('fret'),
     Padding(7)
 )
 
-FINGERPRINT = Struct('fingerPrints',
+FINGERPRINT = Struct(
+    'fingerPrints',
     ULInt32('chordId'),
     LFloat32('startTime'),
     LFloat32('endTime'),
@@ -178,7 +200,8 @@ FINGERPRINT = Struct('fingerPrints',
     LFloat32('UNK_endTime'),
 )
 
-NOTE = Struct('notes',
+NOTE = Struct(
+    'notes',
     ULInt32('mask'),
     ULInt32('flags'),
     SLInt32('hash'),
@@ -208,7 +231,8 @@ NOTE = Struct('notes',
     array(BEND_VALUE)
 )
 
-LEVEL = Struct('levels',
+LEVEL = Struct(
+    'levels',
     ULInt32('difficulty'),
     array(ANCHOR),
     array(ANCHOR_EXTENSION),
@@ -219,7 +243,8 @@ LEVEL = Struct('levels',
     array(ULInt32('notesInIterCount'))
 )
 
-METADATA = Struct('metadata',
+METADATA = Struct(
+    'metadata',
     LFloat64('maxScore'),
     LFloat64('maxNotes'),
     LFloat64('maxNotesNoIgnored'),
@@ -236,7 +261,8 @@ METADATA = Struct('metadata',
     SLInt32('maxDifficulty')
 )
 
-SONG = Struct('song',
+SONG = Struct(
+    'song',
     array(BEAT),
     array(PHRASE),
     array(CHORD_TEMPLATE),

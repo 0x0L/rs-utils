@@ -7,7 +7,7 @@
 #     wav2wem FILE...
 #
 SCRIPTPATH=$0
-if [ $(uname) != "Darwin" ]; then
+if [ "$(uname)" != "Darwin" ]; then
     SCRIPTPATH=$(readlink -f "$0")
 fi
 THISPATH=$(cd "$(dirname "$SCRIPTPATH")"; pwd)
@@ -20,7 +20,7 @@ do
     tar -zxf "$THISPATH/../share/Template.tar.gz"
     cp "$1" Template/Originals/SFX/song.wav
 
-    cd Template
+    cd Template || exit
     "$THISPATH/WwiseCLI" Template.wproj -GenerateSoundBanks
     cd ..
 

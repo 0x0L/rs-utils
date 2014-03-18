@@ -38,18 +38,20 @@ def pad(data, blocksize=16):
     padding = (blocksize - len(data)) % blocksize
     return data + chr(0) * padding
 
+
 def path2dict(path):
     """Reads a path into a dictionary"""
     output = {}
     for dirpath, _, filenames in os.walk(path):
         for filename in filenames:
             fullpath = os.path.join(dirpath, filename)
-            name = fullpath[len(path)+1:]
+            name = fullpath[len(path) + 1:]
 
             with open(fullpath, 'rb') as fstream:
                 output[name] = fstream.read()
 
     return output
+
 
 def stdout_same_line(line):
     """Prepend carriage return and output to stdout"""
@@ -71,13 +73,14 @@ def aes_ctr(data, key, ivector, encrypt=True):
 
     return output
 
+
 def decrypt_sng(data, key):
     """Decrypt SNG. Data consist of a 8 bytes header, 16 bytes initialization
     vector and payload and the DSA signature. Payload is first decrypted using
     AES CTR and then zlib decompressed. Size is checked."""
 
     decrypted = aes_ctr(data[24:], key, data[8:24], encrypt=False)
-    length = struct.unpack('<L', decrypted[:4])[0] # file size
+    length = struct.unpack('<L', decrypted[:4])[0]  # file size
     payload = ''
     try:
         payload = zlib.decompress(decrypted[4:])
@@ -89,14 +92,15 @@ def decrypt_sng(data, key):
 
     return payload
 
+
 def encrypt_sng(data, key):
     """Encrypt SNG"""
-    output = struct.pack('<LL', 0x4a, 3) # the header
+    output = struct.pack('<LL', 0x4a, 3)  # the header
 
     payload = struct.pack('<L', len(data))
     payload += zlib.compress(data, zlib.Z_BEST_COMPRESSION)
 
-    ivector = 16*chr(0)
+    ivector = 16 * chr(0)
     output += ivector
     output += aes_ctr(payload, key, ivector)
 
@@ -131,6 +135,7 @@ def read_entry(filestream, entry):
 
     return data
 
+
 def create_entry(name, data):
     """Chunk a file"""
 
@@ -145,7 +150,7 @@ def create_entry(name, data):
 
     i = 0
     while i < len(data):
-        raw = data[i:i+BLOCK_SIZE]
+        raw = data[i:i + BLOCK_SIZE]
         i += BLOCK_SIZE
 
         compressed = zlib.compress(raw, zlib.Z_BEST_COMPRESSION)
@@ -157,11 +162,11 @@ def create_entry(name, data):
             zlength.append(len(raw) % BLOCK_SIZE)
 
     return {
-        'filepath' : name,
-        'zlength'  : zlength,
-        'length'   : len(data),
-        'data'     : output,
-        'md5'      : md5.new(name).digest() if name != '' else 16 * chr(0)
+        'filepath': name,
+        'zlength': zlength,
+        'length': len(data),
+        'data': output,
+        'md5': md5.new(name).digest() if name != '' else 16 * chr(0)
     }
 
 
@@ -169,6 +174,7 @@ def cipher_toc():
     """AES CFB Mode"""
     return AES.new(ARC_KEY.decode('hex'), mode=AES.MODE_CFB,
                    IV=ARC_IV.decode('hex'), segment_size=128)
+
 
 def read_toc(filestream):
     """Read entry list and Z-fragments.
@@ -190,10 +196,10 @@ def read_toc(filestream):
     while idx < n_entries:
         data = toc[toc_position:toc_position + ENTRY_SIZE]
         entries.append({
-            'md5'    : data[:16],
-            'zindex' : struct.unpack('>L', data[16:20])[0],
-            'length' : struct.unpack('>Q', 3*chr(0) + data[20:25])[0],
-            'offset' : struct.unpack('>Q', 3*chr(0) + data[25:])[0]
+            'md5': data[:16],
+            'zindex': struct.unpack('>L', data[16:20])[0],
+            'length': struct.unpack('>Q', 3 * chr(0) + data[20:25])[0],
+            'offset': struct.unpack('>Q', 3 * chr(0) + data[25:])[0]
         })
         toc_position += ENTRY_SIZE
         idx += 1
@@ -216,6 +222,7 @@ def read_toc(filestream):
 
     return entries[1:]
 
+
 def create_toc(entries):
     """Build an encrypted TOC for a given list of entries."""
 
@@ -231,11 +238,11 @@ def create_toc(entries):
 
         zlength += entry['zlength']
 
-
     toc_size = 32 + ENTRY_SIZE * len(entries) + 2 * len(zlength)
 
     header = struct.pack('>4sL4sLLLLL', MAGIC, VERSION, COMPRESSION,
-                toc_size, ENTRY_SIZE, len(entries), BLOCK_SIZE, ARCHIVE_FLAGS)
+                         toc_size, ENTRY_SIZE, len(entries),
+                         BLOCK_SIZE, ARCHIVE_FLAGS)
 
     toc = ''
     for entry in entries:
@@ -261,7 +268,7 @@ def extract_psarc(filename):
 
         logmsg = 'Extracting ' + basepath + ' {0}/' + str(len(entries))
         for idx, entry in enumerate(entries):
-            stdout_same_line(logmsg.format(idx+1))
+            stdout_same_line(logmsg.format(idx + 1))
             fname = os.path.join(basepath, entry['filepath'])
             data = read_entry(psarc, entry)
 
@@ -272,6 +279,7 @@ def extract_psarc(filename):
                 fstream.write(data)
     print
 
+
 def create_psarc(files, filename):
     """Writes a dictionary filepath -> data to a PSARC file"""
     # Order is reversed
@@ -280,7 +288,7 @@ def create_psarc(files, filename):
 
     logmsg = 'Creating ' + filename + ' {0}/' + str(len(files))
     for idx, (name, data) in enumerate(reversed(sorted(files.items()))):
-        stdout_same_line(logmsg.format(idx+1))
+        stdout_same_line(logmsg.format(idx + 1))
         entries.append(create_entry(name, data))
 
     with open(filename, 'wb') as fstream:
@@ -288,6 +296,7 @@ def create_psarc(files, filename):
         for entry in entries:
             fstream.write(entry['data'])
     print
+
 
 def change_path(data, osx2pc):
     """Changing path"""
@@ -298,6 +307,7 @@ def change_path(data, osx2pc):
         data = data.replace('audio/windows', 'audio/mac')
         data = data.replace('bin/generic', 'bin/macos')
     return data
+
 
 def convert(filename):
     """Convert between PC and Mac PSARC"""

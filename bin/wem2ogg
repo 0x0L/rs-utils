@@ -6,7 +6,7 @@
 #     wem2ogg FILE...
 #
 SCRIPTPATH=$0
-if [ $(uname) != "Darwin" ]; then
+if [ "$(uname)" != "Darwin" ]; then
     SCRIPTPATH=$(readlink -f "$0")
 fi
 THISPATH=$(cd "$(dirname "$SCRIPTPATH")"; pwd)
@@ -15,6 +15,6 @@ PCB=$THISPATH/../share/packed_codebooks.bin
 
 for var in "$@"
 do
-    WINEDEBUG=-all wine "$THISPATH/ww2ogg.exe" $var -o $var.ogg --pcb "$PCB"
-    WINEDEBUG=-all wine "$THISPATH/revorb.exe" $var.ogg
+    WINEDEBUG=-all wine "$THISPATH/ww2ogg.exe" "$var" -o "$var.ogg" --pcb "$PCB"
+    WINEDEBUG=-all wine "$THISPATH/revorb.exe" "$var.ogg"
 done

@@ -22,34 +22,34 @@ xblock_template = """
     <entity id="%(entry_id)s" modelName="RSEnumerable_Song" name="%(internalName)s_%(arrangement)s" iterations="0">
       <properties>
         <property name="Header">
-          <set value="urn:database:hsan-db:songs_dlc_%(internal_name)s" />
+          <set value="urn:database:hsan-db:songs_dlc_%(i_name)s" />
         </property>
         <property name="Manifest">
-          <set value="urn:database:json-db:%(internal_name)s_%(arrangement_name)s" />
+          <set value="urn:database:json-db:%(i_name)s_%(arr_name)s" />
         </property>
         <property name="SngAsset">
-          <set value="urn:application:musicgame-song:%(internal_name)s_%(arrangement_name)s" />
+          <set value="urn:application:musicgame-song:%(i_name)s_%(arr_name)s" />
         </property>
         <property name="AlbumArtSmall">
-          <set value="urn:image:dds:album_%(internal_name)s_64" />
+          <set value="urn:image:dds:album_%(i_name)s_64" />
         </property>
         <property name="AlbumArtMedium">
-          <set value="urn:image:dds:album_%(internal_name)s_128" />
+          <set value="urn:image:dds:album_%(i_name)s_128" />
         </property>
         <property name="AlbumArtLarge">
-          <set value="urn:image:dds:album_%(internal_name)s_256" />
+          <set value="urn:image:dds:album_%(i_name)s_256" />
         </property>
         <property name="LyricArt">
           <set value="" />
         </property>
         <property name="ShowLightsXMLAsset">
-          <set value="urn:application:xml:%(internal_name)s_showlights" />
+          <set value="urn:application:xml:%(i_name)s_showlights" />
         </property>
         <property name="SoundBank">
-          <set value="urn:audio:wwise-sound-bank:song_%(internal_name)s" />
+          <set value="urn:audio:wwise-sound-bank:song_%(i_name)s" />
         </property>
         <property name="PreviewSoundBank">
-          <set value="urn:audio:wwise-sound-bank:song_%(internal_name)s_preview" />
+          <set value="urn:audio:wwise-sound-bank:song_%(i_name)s_preview" />
         </property>
       </properties>
     </entity>"""
@@ -84,15 +84,15 @@ if __name__ == '__main__':
             for k in keys:
                 a[k] = u[k]
 
-            dict = {
+            d = {
                 'entry_id': id.lower(),
-                'internal_name': u['BlockAsset'][19:],
+                'i_name': u['BlockAsset'][19:],
                 'internalName': u['DLCKey'],
                 'arrangement': u['ArrangementName'],
-                'arrangement_name': u['ArrangementName'].lower()
+                'arr_name': u['ArrangementName'].lower()
             }
-            name = dict['internal_name']
-            xblock += xblock_template % dict
+            name = d['i_name']
+            xblock += xblock_template % d
 
             u = a
 
@@ -103,7 +103,7 @@ if __name__ == '__main__':
     xblock += '</game>'
 
     with open('songs_dlc_' + name + '.hsan', 'w') as fstream:
-      fstream.write(json.dumps(output, indent=4, sort_keys=True))
+        fstream.write(json.dumps(output, indent=4, sort_keys=True))
 
     with open(name + '.xblock', 'w') as fstream:
-      fstream.write(xblock)
+        fstream.write(xblock)

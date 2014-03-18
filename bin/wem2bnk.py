@@ -17,26 +17,28 @@ import os
 CHUNK_SIZE = 51200
 
 PREVIEW = False
-VOLUME  = -5.0
-FILE_ID = random.randint(0, 2**32)
+VOLUME = -5.0
+FILE_ID = random.randint(0, 2 ** 32)
 
-SOUND_ID  = random.randint(0, 2**32)
-BANK_ID   = random.randint(0, 2**32)
-ACTION_ID = random.randint(0, 2**32)
-BUS_ID    = random.randint(0, 2**32)
+SOUND_ID = random.randint(0, 2 ** 32)
+BANK_ID = random.randint(0, 2 ** 32)
+ACTION_ID = random.randint(0, 2 ** 32)
+BUS_ID = random.randint(0, 2 ** 32)
 
 # True constants
-MIXER_ID         = 0x26c77444
-PLUGIN_ID        = 0x40001
+MIXER_ID = 0x26c77444
+PLUGIN_ID = 0x40001
 DIRECT_PARENT_ID = 0x10000
-PARENT_BUS_ID    = 0x9bf0fc29
-UNK_ID           = 0xf908c29a
-UNK_ID2          = 0x10100
+PARENT_BUS_ID = 0x9bf0fc29
+UNK_ID = 0xf908c29a
+UNK_ID2 = 0x10100
+
 
 def section(section_name, content):
     """Append header to a section"""
 
     return section_name + struct.pack('<L', len(content)) + content
+
 
 def header():
     """Header section"""
@@ -47,11 +49,13 @@ def header():
 
     return bkhd
 
+
 def dataindex():
     """Data Index section"""
 
     didx = struct.pack('<LLL', FILE_ID, 0, CHUNK_SIZE)
     return didx
+
 
 def hierarchy():
     """Hierarchy section"""
@@ -59,24 +63,24 @@ def hierarchy():
     # TODO make this tidier and more readable
 
     sound = struct.pack('<LLLLL', SOUND_ID, PLUGIN_ID, 2, FILE_ID, FILE_ID)
-    sound += 3*chr(0)
+    sound += 3 * chr(0)
     sound += struct.pack('<LL', BUS_ID, DIRECT_PARENT_ID)
-    sound += struct.pack('<LL', UNK_ID*PREVIEW, MIXER_ID)
-    sound += 3*chr(0) + chr(3) + chr(0) + chr(0x2e) + chr(0x2f)
+    sound += struct.pack('<LL', UNK_ID * PREVIEW, MIXER_ID)
+    sound += 3 * chr(0) + chr(3) + chr(0) + chr(0x2e) + chr(0x2f)
     sound += struct.pack('<fLL', VOLUME, 1, 3)
-    sound += 6*chr(0) + 2*chr(PREVIEW) + chr(0)
+    sound += 6 * chr(0) + 2 * chr(PREVIEW) + chr(0)
     sound += struct.pack('<H', PREVIEW)
-    sound += 2*chr(0) + chr(PREVIEW) + 11*chr(0)
+    sound += 2 * chr(0) + chr(PREVIEW) + 11 * chr(0)
 
     mixer = struct.pack('<LHLLLL', MIXER_ID, 0, PARENT_BUS_ID, 0, 0, UNK_ID2)
-    mixer += 22*chr(0)
+    mixer += 22 * chr(0)
     mixer += struct.pack('<HLL', 0, 1, SOUND_ID)
 
     action = struct.pack('<LHL', ACTION_ID, 0x403, SOUND_ID)
-    action += 3*chr(0) + chr(4)
+    action += 3 * chr(0) + chr(4)
     action += struct.pack('<L', BANK_ID)
 
-    event = struct.pack('<LLL', random.randint(0, 2**32), 1, ACTION_ID)
+    event = struct.pack('<LLL', random.randint(0, 2 ** 32), 1, ACTION_ID)
 
     hirc = struct.pack('<L', 4)
     hirc += struct.pack('<BL', 2, len(sound)) + sound
@@ -86,6 +90,7 @@ def hierarchy():
 
     return hirc
 
+
 def stringid(name):
     """StrindID section"""
 
@@ -93,10 +98,11 @@ def stringid(name):
     stid += name
     return stid
 
+
 def build_bnk(name, data):
     """Build a soundbank for the given data chunk"""
 
-    bnk  = section('BKHD', header())
+    bnk = section('BKHD', header())
     bnk += section('DIDX', dataindex())
     bnk += section('DATA', data)
     bnk += section('HIRC', hierarchy())
@@ -112,7 +118,7 @@ if __name__ == '__main__':
         PREVIEW = True
 
     FILE_ID = int(args['FILE_ID'])
-    VOLUME  = float(args['--volume'])
+    VOLUME = float(args['--volume'])
 
     f = os.path.basename(args['FILE'])
     base = os.path.basename(os.path.splitext(f)[0])
