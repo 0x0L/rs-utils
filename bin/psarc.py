@@ -17,7 +17,7 @@ import zlib
 import os
 import md5
 import sys
-
+import json
 
 MAGIC = "PSAR"
 VERSION = 65540
@@ -31,6 +31,8 @@ ARC_IV = 'E915AA018FEF71FC508132E4BB4CEB42'
 
 MAC_KEY = '9821330E34B91F70D0A48CBD625993126970CEA09192C0E6CDA676CC9838289D'
 PC_KEY = 'CB648DF3D12A16BF71701414E69619EC171CCA5D2A142E3E59DE7ADDA18A3A30'
+
+PRF_KEY = '728B369E24ED0134768511021812AFC0A3C25D02065F166B4BCC58CD2644F29E'
 
 
 def pad(data, blocksize=16):
@@ -51,6 +53,18 @@ def path2dict(path):
                 output[name] = fstream.read()
 
     return output
+
+
+def decrypt_profile(stream):
+    """For *_prfldb, crd and profile.json files"""
+    s = stream.read()
+    size = struct.unpack('<L', s[16:20])[0]
+
+    cipher = AES.new(PRF_KEY.decode('hex'))
+    x = zlib.decompress(cipher.decrypt(pad(s[20:])))
+    assert(size == len(x))
+
+    return json.loads(x[:-1])  # it's a long C string
 
 
 def stdout_same_line(line):
