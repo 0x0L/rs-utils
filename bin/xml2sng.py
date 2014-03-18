@@ -6,9 +6,6 @@ Generate JSON manifest and binary SNG for Rocksmith 2014 from source SNG XML.
 Usage: xml2sng.py FILE...
 """
 
-# TODO: specify a tone library definition to import from
-# tone library is output from tones.py
-
 import binascii
 import md5
 import json
@@ -508,9 +505,6 @@ def process_sng(sng):
     if not 'internalName' in sng:
         sng['internalName'] = sng.title
 
-    sng['i_name'] = sng.internalName.lower()
-    sng['arr_name'] = sng.arrangement.lower()
-
     if not 'albumNameSort' in sng:
         sng['albumNameSort'] = sng.albumName
     if not 'songNameSort' in sng:
@@ -565,164 +559,41 @@ def process_sng(sng):
     process_metadata(sng)
 
 
-JSON_TEMPLATE = """{
-  "Entries": {
-    "%(entry_id)s": {
-      "Attributes": {
-        "AlbumArt": "urn:image:dds:album_%(i_name)s",
-        "AlbumName": "%(albumName)s",
-        "AlbumNameSort": "%(albumNameSort)s",
-        "ArrangementName": "%(arrangement)s",
-        "ArrangementProperties": %(arrPropJSON)s,
-        "ArrangementSort": %(arrangementSort)s,
-        "ArrangementType": %(arrangementType)s,
-        "ArtistName": "%(artistName)s",
-        "ArtistNameSort": "%(artistNameSort)s",
-        "BlockAsset": "urn:emergent-world:%(i_name)s",
-        "CentOffset": %(centOffset)s,
-        "Chords": %(chordsJSON)s,
-        "ChordTemplates": %(chordTemplatesJSON)s,
-        "DLC": true,
-        "DLCKey": "%(internalName)s",
-        "DNA_Chords": %(dnaChords)s,
-        "DNA_Riffs": %(dnaRiffs)s,
-        "DNA_Solo": %(dnaSolo)s,
-        "DynamicVisualDensity": [
-          4.5,
-          4.3,
-          4.1,
-          3.9,
-          3.7,
-          3.4,
-          3.1,
-          2.8,
-          2.5,
-          2.2,
-          1.9,
-          1.7,
-          1.5,
-          1.3,
-          1.3,
-          1.3,
-          1.3,
-          1.3,
-          1.3,
-          1.3
-        ],
-        "EasyMastery": %(easyMastery)s,
-        "FullName": "%(internalName)s_%(arrangement)s",
-        "LastConversionDateTime": "%(lastConversionDateTime)s",
-        "LeaderboardChallengeRating": 0,
-        "ManifestUrn": "urn:database:json-db:%(i_name)s_%(arr_name)s",
-        "MasterID_PS3": -1,
-        "MasterID_RDV": 30001,
-        "MasterID_XBox360": -1,
-        "MaxPhraseDifficulty": %(maxPhraseDifficulty)s,
-        "MediumMastery": %(mediumMastery)s,
-        "NotesEasy": %(notesEasy)s,
-        "NotesHard": %(notesHard)s,
-        "NotesMedium": %(notesMedium)s,
-        "PhraseIterations": %(phraseIterationsJSON)s,
-        "PreviewBankPath": "song_%(i_name)s_preview.bnk",
-        "RelativeDifficulty": 0,
-        "Score_MaxNotes": %(score_MaxNotes)s,
-        "Score_PNV": %(score_PNV)s,
-        "Sections": %(sectionsJSON)s,
-        "Shipping": true,
-        "ShowlightsXML": "urn:application:xml:%(i_name)s_showlights",
-        "SKU": "RS2",
-        "SongAsset": "urn:application:musicgame-song:%(i_name)s_%(arr_name)s",
-        "SongAverageTempo": %(averageTempo)s,
-        "SongBank": "song_%(i_name)s.bnk",
-        "SongDiffEasy": %(songDiffEasy)s,
-        "SongDiffHard": %(songDiffHard)s,
-        "SongDifficulty": %(songDifficulty)s,
-        "SongDiffMed": %(songDiffMed)s,
-        "SongEvent": "Play_%(internalName)s",
-        "SongKey": "%(internalName)s",
-        "SongLength": %(songLength)s,
-        "SongName": "%(title)s",
-        "SongNameSort": "%(songNameSort)s",
-        "SongOffset": %(offset)s,
-        "SongPartition": %(part)s,
-        "SongXml": "urn:application:xml:%(i_name)s_%(arr_name)s",
-        "SongYear": %(albumYear)s,
-        "TargetScore": %(targetScore)s,
-        "Techniques": %(techniquesJSON)s,
-        "Tone_A": "%(tone_A)s",
-        "Tone_B": "%(tone_B)s",
-        "Tone_Base": "%(tone_Base)s",
-        "Tone_C": "%(tone_C)s",
-        "Tone_D": "%(tone_D)s",
-        "Tone_Multiplayer": "%(tone_Multiplayer)s",
-        "Tones": %(tonesJSON)s,
-        "Tuning": %(tuningJSON)s,
-        "PersistentID": "%(entry_id)s"
-      }
-    }
-  },
-  "ModelName": "RSEnumerable_Song",
-  "IterationVersion": 2,
-  "InsertRoot": "Static.Songs.Entries"
-}
-"""
-
-
-def indent(t, value=8):
-    return t.replace('\n', '\n' + value * ' ')
-
-
-def json_helper(o):
-    return indent(
-        json.dumps(o, separators=(',', ': '), sort_keys=True, indent=2))
-
-
-def build_json(sng):
-    sng['entry_id'] = md5.new(str(sng)).hexdigest().upper()
+def build_manifest(sng):
+    entry_id = md5.new(str(sng)).hexdigest().upper()
 
     # TODO compute routeMask
     sng.arrangementProperties['routeMask'] = 0
-    sng['arrangementSort'] = 0
-    sng['arrangementType'] = 0
+    arrangementSort = 0
+    arrangementType = 0
 
-    sng['dnaSolo'] = max([0.0] + [e.time for e in sng.dnas if e.id == 1])
-    sng['dnaRiffs'] = max([0.0] + [e.time for e in sng.dnas if e.id == 2])
-    sng['dnaChords'] = max([0.0] + [e.time for e in sng.dnas if e.id == 3])
+    dnaSolo = max([0.0] + [e.time for e in sng.dnas if e.id == 1])
+    dnaRiffs = max([0.0] + [e.time for e in sng.dnas if e.id == 2])
+    dnaChords = max([0.0] + [e.time for e in sng.dnas if e.id == 3])
 
-    sng['maxPhraseDifficulty'] = sng.metadata.maxDifficulty
-    sng['targetScore'] = sng.metadata.maxScore
-    sng['score_MaxNotes'] = sng.metadata.maxNotes
+    score_PNV = 1.0
     if sng.metadata.maxNotes > 0.0:
-        sng['score_PNV'] = sng.metadata.maxScore / sng.metadata.maxNotes
-    else:
-        sng['score_PNV'] = 1.0
+        score_PNV = sng.metadata.maxScore / sng.metadata.maxNotes
 
     r = []
     for i, piter in enumerate(sng.phraseIterations):
-        r.append([sng.levels[j].notesInIterCount[i]
-                 for j in piter.difficulty])
+        r.append([sng.levels[j].notesInIterCount[i] for j in piter.difficulty])
 
-    sng['notesEasy'], sng['notesMedium'], sng['notesHard'] = map(sum, zip(*r))
-    if sng.notesHard > 0:
-        sng['easyMastery'] = sng['notesEasy'] / sng['notesHard']
-        sng['mediumMastery'] = sng['notesMedium'] / sng['notesHard']
-    else:
-        sng['easyMastery'] = 1.0
-        sng['mediumMastery'] = 1.0
+    notesEasy, notesMedium, notesHard = map(sum, zip(*r))
+    easyMastery = 1.0
+    mediumMastery = 1.0
+    if notesHard > 0:
+        easyMastery = notesEasy / notesHard
+        mediumMastery = notesMedium / notesHard
 
     # TODO: no idea how those are computed
-    sng['songDiffEasy'] = 0.5
-    sng['songDiffMed'] = 0.5
-    sng['songDiffHard'] = 0.5
-    sng['songDifficulty'] = sng['songDiffHard']
+    songDiffEasy = 0.5
+    songDiffMed = 0.5
+    songDiffHard = 0.5
 
-    sng['arrPropJSON'] = json_helper(sng.arrangementProperties)
-
-    sng['tuningJSON'] = json_helper(sng.tuning)
-
-    r = []
+    sections = []
     for s in sng.sections:
-        r.append({
+        sections.append({
             'Name': s.name,
             'UIName': sng.title + ' ' + s.name + ' [' + str(s.number) + ']',
             'Number': s.number,
@@ -732,24 +603,22 @@ def build_json(sng):
             'EndPhraseIterationIndex': s.endPhraseIterationId,
             'IsSolo': s.isSolo
         })
-    sng['sectionsJSON'] = json_helper(r)
 
-    r = []
+    phraseIterations = []
     for piter in sng.phraseIterations:
-        r.append({
+        phraseIterations.append({
             'PhraseIndex': piter.phraseId,
             'MaxDifficulty': max(piter.difficulty),
             'Name': sng.phrases[piter.phraseId].name,
             'StartTime': piter.time,
             'EndTime': piter.endTime
         })
-    sng['phraseIterationsJSON'] = json_helper(r)
 
-    r = []
+    chordTemplates = []
     for idx, chord in enumerate(sng.chordTemplates):
         if chord.chordName == '':
             continue
-        r.append({
+        chordTemplates.append({
             'ChordId': idx,
             'ChordName': chord.chordName,
             'Fingers': [chord.finger0, chord.finger1, chord.finger2,
@@ -757,21 +626,106 @@ def build_json(sng):
             'Frets': [chord.fret0, chord.fret1, chord.fret2,
                       chord.fret3, chord.fret4, chord.fret5]
         })
-    sng['chordTemplatesJSON'] = json_helper(r)
 
     # TODO
-    sng['chordsJSON'] = {}
-    sng['techniquesJSON'] = {}
-    # need to include external tone definitions from tones.py
-    sng['tonesJSON'] = []
+    chords = {}
+    techniques = {}
+    tones = []
 
-    return JSON_TEMPLATE % sng
+    urn_base = sng.internalName.lower()
+    fullname = sng.internalName + '_' + sng.arrangement
+    urn_full = fullname.lower()
+
+    return {
+        'AlbumArt': 'urn:image:dds:album_' + urn_base,
+        'AlbumName': sng.albumName,
+        'AlbumNameSort': sng.albumNameSort,
+        'ArrangementName': sng.arrangement,
+        'ArrangementProperties': sng.arrangementProperties,
+        'ArrangementSort': arrangementSort,
+        'ArrangementType': arrangementType,
+        'ArtistName': sng.artistName,
+        'ArtistNameSort': sng.artistNameSort,
+        'BlockAsset': 'urn:emergent-world:' + urn_base,
+        'CentOffset': sng.centOffset,
+        'Chords': chords,
+        'ChordTemplates': chordTemplates,
+        'DLC': True,
+        'DLCKey': sng.internalName,
+        'DNA_Chords': dnaChords,
+        'DNA_Riffs': dnaRiffs,
+        'DNA_Solo': dnaSolo,
+        'DynamicVisualDensity': 20 * [2.0],
+        'EasyMastery': easyMastery,
+        'FullName': fullname,
+        'LastConversionDateTime': sng.lastConversionDateTime,
+        'LeaderboardChallengeRating': 0,
+        'ManifestUrn': 'urn:database:json-db:' + urn_full,
+        'MasterID_PS3': -1,
+        'MasterID_RDV': 30001,
+        'MasterID_XBox360': -1,
+        'MaxPhraseDifficulty': sng.metadata.maxDifficulty,
+        'MediumMastery': mediumMastery,
+        'NotesEasy': notesEasy,
+        'NotesHard': notesHard,
+        'NotesMedium': notesMedium,
+        'PhraseIterations': phraseIterations,
+        'PreviewBankPath': 'song_' + urn_base + '_preview.bnk',
+        'RelativeDifficulty': 0,
+        'Score_MaxNotes': sng.metadata.maxNotes,
+        'Score_PNV': score_PNV,
+        'Sections': sections,
+        'Shipping': True,
+        'ShowlightsXML': 'urn:application:xml:' + urn_base + '_showlights',
+        'SKU': 'RS2',
+        'SongAsset': 'urn:application:musicgame-song:' + urn_full,
+        'SongAverageTempo': sng.averageTempo,
+        'SongBank': 'song_' + urn_base + '.bnk',
+        'SongDiffEasy': songDiffEasy,
+        'SongDiffHard': songDiffHard,
+        'SongDifficulty': songDiffHard,
+        'SongDiffMed': songDiffMed,
+        'SongEvent': 'Play_' + sng.internalName,
+        'SongKey': sng.internalName,
+        'SongLength': sng.songLength,
+        'SongName': sng.title,
+        'SongNameSort': sng.songNameSort,
+        'SongOffset': sng.offset,
+        'SongPartition': sng.part,
+        'SongXml': 'urn:application:xml:' + urn_full,
+        'SongYear': sng.albumYear,
+        'TargetScore': sng.metadata.maxScore,
+        'Techniques': techniques,
+        'Tone_A': sng.tone_A,
+        'Tone_B': sng.tone_B,
+        'Tone_Base': sng.tone_Base,
+        'Tone_C': sng.tone_C,
+        'Tone_D': sng.tone_D,
+        'Tone_Multiplayer': sng.tone_Multiplayer,
+        'Tones': tones,
+        'Tuning': sng.tuning,
+        'PersistentID': entry_id
+    }
 
 
-def load_rsxml(filename):
-    """Load Rocksmith 2014 SNG XML into a python object."""
+def manifest_header(manifest):
+    return {
+        'Entries': {
+            manifest['PersistentID']: {
+                'Attributes': manifest
+            }
+        },
+        'ModelName': 'RSEnumerable_Song',
+        'IterationVersion': 2,
+        'InsertRoot': 'Static.Songs.Entries'
+    }
+
+
+def compile_xml(filename):
     sng = xml2AttrDict(open(filename, 'r').read())
+    process_sng(sng)
     return sng
+
 
 if __name__ == '__main__':
     from docopt import docopt
@@ -780,15 +734,15 @@ if __name__ == '__main__':
 
     for f in args['FILE']:
         print 'Processing', f
-        xml = load_rsxml(f)
-        process_sng(xml)
 
-        basename = xml['i_name'] + '_' + xml['arr_name']
+        sng = compile_xml(f)
+        manifest = build_manifest(sng)
 
-        fname = basename + '.sng'
-        with open(fname, 'wb') as fstream:
-            fstream.write(sngparser.SONG.build(xml))
+        filename = manifest['ManifestUrn'][21:]
 
-        fname = basename + '.json'
-        with open(fname, 'w') as fstream:
-            fstream.write(build_json(xml))
+        with open(filename + '.sng', 'wb') as stream:
+            stream.write(sngparser.SONG.build(sng))
+
+        with open(filename + '.json', 'w') as stream:
+            d = manifest_header(manifest)
+            stream.write(json.dumps(d, indent=2, sort_keys=True))

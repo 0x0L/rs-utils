@@ -8,7 +8,7 @@ Usage: hsan.py FILES...
 
 import json
 
-keys = [
+HSAN_KEYS = [
     'AlbumArt', 'AlbumName', 'AlbumNameSort', 'ArrangementName', 'ArtistName',
     'ArtistNameSort', 'CentOffset', 'DLC', 'DLCKey', 'DNA_Chords', 'DNA_Riffs',
     'DNA_Solo', 'EasyMastery', 'LeaderboardChallengeRating', 'ManifestUrn',
@@ -18,38 +18,38 @@ keys = [
     'SongNameSort', 'SongYear', 'Tuning'
 ]
 
-xblock_template = """
-    <entity id="%(entry_id)s" modelName="RSEnumerable_Song" name="%(internalName)s_%(arrangement)s" iterations="0">
+XBLOCK_TEMPLATE = """
+    <entity id="%(persistent_id)s" modelName="RSEnumerable_Song" name="%(SongKey)s" iterations="0">
       <properties>
         <property name="Header">
-          <set value="urn:database:hsan-db:songs_dlc_%(i_name)s" />
+          <set value="urn:database:hsan-db:songs_dlc_%(name)s" />
         </property>
         <property name="Manifest">
-          <set value="urn:database:json-db:%(i_name)s_%(arr_name)s" />
+          <set value="%(ManifestUrn)s" />
         </property>
         <property name="SngAsset">
-          <set value="urn:application:musicgame-song:%(i_name)s_%(arr_name)s" />
+          <set value="%(SongAsset)s" />
         </property>
         <property name="AlbumArtSmall">
-          <set value="urn:image:dds:album_%(i_name)s_64" />
+          <set value="%(AlbumArt)s_64" />
         </property>
         <property name="AlbumArtMedium">
-          <set value="urn:image:dds:album_%(i_name)s_128" />
+          <set value="%(AlbumArt)s_128" />
         </property>
         <property name="AlbumArtLarge">
-          <set value="urn:image:dds:album_%(i_name)s_256" />
+          <set value="%(AlbumArt)s_256" />
         </property>
         <property name="LyricArt">
           <set value="" />
         </property>
         <property name="ShowLightsXMLAsset">
-          <set value="urn:application:xml:%(i_name)s_showlights" />
+          <set value="%(ShowlightsXML)s" />
         </property>
         <property name="SoundBank">
-          <set value="urn:audio:wwise-sound-bank:song_%(i_name)s" />
+          <set value="urn:audio:wwise-sound-bank:song_%(name)s" />
         </property>
         <property name="PreviewSoundBank">
-          <set value="urn:audio:wwise-sound-bank:song_%(i_name)s_preview" />
+          <set value="urn:audio:wwise-sound-bank:song_%(name)s_preview" />
         </property>
       </properties>
     </entity>"""
@@ -60,9 +60,9 @@ if __name__ == '__main__':
 
     args = docopt(__doc__)
 
-    output = {}
-    output['Entries'] = {}
-    output['InsertRoot'] = 'Static.Songs.Headers'
+    hsan_db = {}
+    hsan_db['Entries'] = {}
+    hsan_db['InsertRoot'] = 'Static.Songs.Headers'
 
     xblock = '<?xml version="1.0" encoding="utf-8"?>\n'
     xblock += '<game>\n'
@@ -73,37 +73,33 @@ if __name__ == '__main__':
     for f in args['FILES']:
         print 'Processing', f
 
-        with open(f, 'r') as fstream:
-            o = json.loads(fstream.read())
-            id = o['Entries'].keys()[0]
+        with open(f, 'r') as stream:
+            manifest = json.loads(stream.read())
+            for persistent_id, e in manifest['Entries']:
+                entry = e['Attributes']
 
-            u = o['Entries'][id]['Attributes']
-            a = {}
-            a['RouteMask'] = u['ArrangementProperties']['routeMask']
-            a['Representative'] = u['ArrangementProperties']['represent']
-            for k in keys:
-                a[k] = u[k]
+                entry['name'] = e['internalName'].lower()
+                entry['persistent_id'] = e['PersistentID'].lower()
 
-            d = {
-                'entry_id': id.lower(),
-                'i_name': u['BlockAsset'][19:],
-                'internalName': u['DLCKey'],
-                'arrangement': u['ArrangementName'],
-                'arr_name': u['ArrangementName'].lower()
-            }
-            name = d['i_name']
-            xblock += xblock_template % d
+                xblock += XBLOCK_TEMPLATE % entry
 
-            u = a
+                hsan_entry = {}
+                for k in HSAN_KEYS:
+                    hsan_entry[k] = entry[k]
 
-            output['Entries'][id] = {}
-            output['Entries'][id]['Attributes'] = a
+                prop = entry['ArrangementProperties']
+                hsan_entry['RouteMask'] = prop['routeMask']
+                hsan_entry['Representative'] = prop['represent']
+
+                hsan_db['Entries'][persistent_id] = {'Attributes': hsan_entry}
+
+                name = entry['name']
 
     xblock += '\n  </entitySet>\n'
     xblock += '</game>'
 
-    with open('songs_dlc_' + name + '.hsan', 'w') as fstream:
-        fstream.write(json.dumps(output, indent=4, sort_keys=True))
+    with open('songs_dlc_' + name + '.hsan', 'w') as stream:
+        stream.write(json.dumps(hsan_db, indent=4, sort_keys=True))
 
-    with open(name + '.xblock', 'w') as fstream:
-        fstream.write(xblock)
+    with open(name + '.xblock', 'w') as stream:
+        stream.write(xblock)
