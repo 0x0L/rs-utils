@@ -1,11 +1,12 @@
 #!/bin/sh
 #
-# Converts a WAV audio file to an Audiokinetic WEM file suitable for
-# Rocksmith 2014
+# Converts audio files to Wwise WEM files.
+# Requires FFmpeg and Wwise Authoring Tool + Data
 #
 # Usage:
-#     wav2wem FILE...
+#     audio2wem FILE...
 #
+
 SCRIPTPATH=$0
 if [ "$(uname)" != "Darwin" ]; then
     SCRIPTPATH=$(readlink -f "$0")
@@ -17,14 +18,14 @@ do
     BASENAME=$(basename "$var")
     BASENAME="${BASENAME%.*}"
 
-    tar -zxf "$THISPATH/../share/Template.tar.gz"
-    cp "$1" Template/Originals/SFX/song.wav
+    tar -zxf "$THISPATH/../share/Wwise_Template.tar.gz"
+    ffmpeg -i "$1" Wwise_Template/Originals/SFX/song.wav
 
-    cd Template || exit
+    cd Wwise_Template || exit
     "$THISPATH/WwiseCLI" Template.wproj -GenerateSoundBanks
     cd ..
 
-    mv Template/.cache/Windows/SFX/*.wem "$BASENAME.wem"
+    mv Wwise_Template/.cache/Windows/SFX/*.wem "$BASENAME.wem"
     #mv Template/GeneratedSoundBanks/Windows/RS_SOUNDBANK.bnk "$BASENAME.bnk"
-    rm -fr Template
+    rm -fr Wwise_Template
 done

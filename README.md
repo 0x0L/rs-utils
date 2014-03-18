@@ -7,12 +7,13 @@ A collection of Python scripts for Rocksmith 2014.
 Usage
 -----
 
+  * `audio2wem` convert audio files to Wwise WEM
   * `psarc.py` pack, unpack and convert PSARC
   * `tones.py` extract tones from profile and PSARC
-  * `wav2wem` convert WAV to Wwise WEM
 
 Tools can be used with multiple inputs or wildcards. Examples:
 ```sh
+bin/audio2wem *.mp3 *.ogg *.wav
 bin/psarc.py convert /path/to/dlc/*_p.psarc
 bin/tones.py /path/to/dlc/*.psarc > tone_library.json
 ```
@@ -40,3 +41,9 @@ Setup
     ```
 
     In `bin/WwiseCLI`, make sure the version in the path matches the version installed on your machine.
+
+    Finally, you'll also need FFmpeg:
+
+    ```sh
+    brew install ffmpeg
+    ```
