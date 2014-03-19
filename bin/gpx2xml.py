@@ -43,6 +43,7 @@ class BitReader:
             result = result | (self.read_bit() << i)
         return result
 
+
 def filesystem(data):
     from itertools import takewhile
 
@@ -78,6 +79,7 @@ def filesystem(data):
 
     return fs
 
+
 def read_gp(filename):
     data = open(filename, 'rb')
 
@@ -111,6 +113,7 @@ def read_gp(filename):
 
     fs = filesystem(uncompressed)
     return fs['score.gpif']
+
 
 if __name__ == '__main__':
     from docopt import docopt

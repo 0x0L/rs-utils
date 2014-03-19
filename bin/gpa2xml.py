@@ -13,9 +13,9 @@ import os
 import re
 
 from gpx2xml import read_gp
-import xmlhelpers
+from xmlhelpers import json2xml, xml2json, DefaultConverter, InlineContent
 
-offset = -10.0
+OFFSET = -10.0
 
 DURATIONS = {
     'Whole': -2,
@@ -55,22 +55,13 @@ def get_prop(o, prop_name, default=None):
 
 
 def get_tuning(track):
-    tuning = get_prop(track, 'Tuning')
-    if not tuning:
-        return [0, 0, 0, 0, 0]
-
-    return [a - b for a, b in zip(tuning, STANDARD_TUNING)]
-
-
-def get_capo(track):
-    capo = get_prop(track, 'CapoFret')
-    if not capo:
-        return 0
-    return capo
+    tuning = get_prop(track, 'Tuning', STANDARD_TUNING)
+    offset = [a - b for a, b in zip(tuning, STANDARD_TUNING)]
+    return {'@string' + str(k): offset[k] for k in range(6)}
 
 
 class Bar2Time:
-    def __init__(self, mapping, offset=-10.0):
+    def __init__(self, mapping, offset):
         self.offset = offset
         self._X = []
         self._Y = []
@@ -96,45 +87,47 @@ class Bar2Time:
         return int(1000 * (t - self.offset)) / 1000.0
 
 
-def sorted_name(text):
+def text_for_sort(text):
     x = re.sub(r'(a|an|and|the)(\s+)', '', text, flags=re.IGNORECASE)
     return x.capitalize()
 
 
 def load_gpx(filename):
     def process(x):
-        """Transforms attrib like '1 2 3' in [1, 2, 3]"""
-        y = xmlhelpers.DefaultSanitizer(x)
+        """Transform attributes such as '1 2 3' in [1, 2, 3]"""
+        y = DefaultConverter(x)
         if y == x:
             t = x.split(' ')
-            if len(t) > 0 and t[0] != xmlhelpers.DefaultSanitizer(t[0]):
-                return map(xmlhelpers.DefaultSanitizer, t)
+            if len(t) > 0 and t[0] != DefaultConverter(t[0]):
+                return map(DefaultConverter, t)
 
         return y
 
-    gp = xmlhelpers.xml2json(read_gp(filename), processor=process)
+    gp = xml2json(read_gp(filename), processor=process)
 
     # squashing arrays for convience
     for k in ['Track', 'MasterBar', 'Bar', 'Voice', 'Beat', 'Note', 'Rhythm']:
         gp[k + 's'] = gp[k + 's'][k]
 
-    # for n in gp.Notes:
-    #     n.Properties = n.Properties.Property
-
     return gp
 
 
 def load_goplayalong(filename):
-    gpa = xmlhelpers.xml2json(open(filename).read())
+    gpa = xml2json(open(filename).read())
 
     sync = [y.split(';') for y in gpa.sync.split('#')[1:]]
     sync = {float(b) + float(db): float(t) / 1000.0 for t, b, db, _ in sync}
-    sync = Bar2Time(sync)
+    sync = Bar2Time(sync, OFFSET)
 
     d = os.path.dirname(os.path.abspath(filename))
     gpx = load_gpx(d + os.path.sep + gpa.scoreUrl)
 
     return gpx, sync
+
+
+# TODO
+
+# Arrangement properties
 
 # phrases = [{
 #     '@disparity': 0,
@@ -196,8 +189,7 @@ class SngBuilder:
         self.track = track
         self.timefun = timefun
 
-        self.signature = 4.0  # 4/4 default signature
-
+    def clear(self):
         self.phrases = []
         self.phraseIterations = []
         self.chordTemplates = []
@@ -213,133 +205,22 @@ class SngBuilder:
         self.measure = 0
         self.bar_idx = 0
         self.time = 0.0
+        self.beats_per_bar = 0.0
+        self.measure_offset = 0.0
 
-    def fraction_of_bar(self, duration):
-        return 1.0 / (2**DURATIONS[duration]) / self.signature
+    def json(self):
+        score = self.song.Score
 
-    def new_bar(self, bar_settings):
-        # print bar_settings
-        num, den = map(int, bar_settings.Time.split('/'))
-        self.signature = 4.0 * num / den
-
-        # TODO repeats
-
-        if 'Section' in bar_settings:
-            self.sections.append({
-                '@name': bar_settings.Section.Text,
-                '@number': len(self.sections),
-                '@startTime': self.timefun(self.measure)
-            })
-
-        for i in range(int(self.signature) - 1):
-            self.ebeats.append({
-                '@time': self.timefun(self.measure + i / self.signature),
-                '@measure': self.measure + 1 if i == 0 else -1
-            })
-
-    def new_beat(self, beat):
-        # TODO tone change
-
-        if 'Notes' in beat:
-            if type(beat.Notes) is not list:
-                beat.Notes = [beat.Notes]
-
-            ns = []
-            for n in beat.Notes:
-                note = self.song.Notes[n]
-                # print note
-                # if has_prop(note, 'Bended'):
-                #     print note.Properties.Property
-                ns.append({
-                    '@time': self.time,
-                    # '@linkNext': 0,
-                    # '@accent': 0,
-                    # '@bend': 0,
-                    '@fret': get_prop(note, 'Fret'),
-                    # '@hammerOn': 0,
-                    # '@harmonic': 0,
-                    # '@hopo': 0,
-                    # '@ignore': 0,
-                    # '@leftHand': -1,
-                    # '@mute': 0,
-                    # '@palmMute': 0,
-                    # '@pluck': -1,
-                    # '@pullOff': 0,
-                    # '@slap': -1,
-                    # '@slideTo': -1,
-                    '@string': get_prop(note, 'String'),
-                    # '@sustain': 0.0,
-                    # '@tremolo': 0,
-                    # '@harmonicPinch': 0,
-                    # '@pickDirection': 0,
-                    # '@rightHand': -1,
-                    # '@slideUnpitchTo': -1,
-                    # '@tap': 0,
-                    # '@vibrato': 0,
-                })
-
-            if len(ns) > 1:
-                self.chords.append(self.new_chord(ns))
-            else:
-                self.notes += ns
-
-    def new_chord(self, notes):
-        return {
-            '@time': self.time,
-            # '@linkNext': 0,
-            # '@accent': 0,
-            # '@chordId': 4,
-            # '@fretHandMute': 0,
-            # '@highDensity': 0,
-            # '@ignore': 0,
-            # '@palmMute': 0,
-            # '@hopo': 0,
-            # '@strum': 'down',
-            'chordNotes': xmlhelpers.InlineContent(notes)
-        }
-
-    def run(self):
-        song = self.song
-
-        self.measure = 0
-        self.bar_idx = 0
-
-        while self.bar_idx < len(song.MasterBars):
-            bar_settings = song.MasterBars[self.bar_idx]
-            bar = song.Bars[bar_settings.Bars[self.track['@id']]]
-
-            self.new_bar(bar_settings)
-
-            self.measure_fraction = 0.0
-            for b in song.Voices[bar.Voices[0]].Beats:
-                self.time = self.timefun(self.measure + self.measure_fraction)
-
-                beat = song.Beats[b]
-                self.new_beat(beat)
-
-                rhythm = song.Rhythms[beat.Rhythm['@ref']]
-                f = self.fraction_of_bar(rhythm.NoteValue)
-
-                self.measure_fraction += f
-
-            # TODO logic for repeats
-
-            self.bar_idx += 1
-            self.measure += 1
-
-    def get(self):
-        song = self.song
-
-        internalName = filter(str.isalnum, song.Score.Artist)
-        internalName += filter(str.isalnum, song.Score.Title)
-
-        songLength = self.ebeats[-1]['@time'] if len(self.ebeats) > 0 else 0
-
-        raw_tuning = get_tuning(self.track)
-        tuning = {'@string' + str(k): raw_tuning[k] for k in range(6)}
+        internalName = filter(str.isalnum, score.Artist)
+        internalName += filter(str.isalnum, score.Title)
+        part = 1  # TODO
 
         centOffset = 0  # No cent offset in GPX ?
-        part = 1  # TODO
+
+        songLength = self.ebeats[-1]['@time'] if len(self.ebeats) > 0 else 0
+        offset = self.timefun.offset
+        averageTempo = len(self.ebeats) / (songLength + offset) * 60
+        averageTempo = int(averageTempo * 1000) / 1000.0
 
         arrangementProperties = {
             '@represent': 1,
@@ -370,14 +251,14 @@ class SngBuilder:
             '@syncopation': 0,
             '@bassPick': 0,
             '@sustain': 1,
-            '@pathLead': 0,
+            '@pathLead': 1,
             '@pathRhythm': 0,
             '@pathBass': 0
         }
 
         return {
             '@version': 8,
-            'title': song.Score.Title,
+            'title': score.Title,
             'arrangement': self.track.Name,
             'wavefilepath': '',
             'part': 1,
@@ -385,16 +266,16 @@ class SngBuilder:
             'centOffset': centOffset,
             'songLength': songLength,
             'internalName': internalName,
-            'songNameSort': sorted_name(self.track.Name),
-            'startBeat': 0, #startBeat,
-            'averageTempo': 90, #averageTempo,
-            'tuning': tuning,
-            'capo': get_capo(self.track),
-            'artistName': song.Score.Artist,
-            'artistNameSort': sorted_name(song.Score.Artist),
-            'albumName': song.Score.Album,
-            'albumNameSort': sorted_name(song.Score.Album),
-            'albumYear': song.Score.Copyright,
+            'songNameSort': text_for_sort(self.track.Name),
+            'startBeat': 0.000,
+            'averageTempo': averageTempo,
+            'tuning': get_tuning(self.track),
+            'capo': get_prop(self.track, 'CapoFret', 0),
+            'artistName': score.Artist,
+            'artistNameSort': text_for_sort(score.Artist),
+            'albumName': score.Album,
+            'albumNameSort': text_for_sort(score.Album),
+            'albumYear': score.Copyright,
             'albumArt': internalName,
             'crowdSpeed': 1,
             'arrangementProperties': arrangementProperties,
@@ -427,16 +308,124 @@ class SngBuilder:
             'tones': self.tones
         }
 
+    def new_chord(self, notes):
+        return {
+            '@time': self.time,
+            # '@linkNext': 0,
+            # '@accent': 0,
+            # '@chordId': 4,
+            # '@fretHandMute': 0,
+            # '@highDensity': 0,
+            # '@ignore': 0,
+            # '@palmMute': 0,
+            # '@hopo': 0,
+            # '@strum': 'down',
+            'chordNotes': InlineContent(notes)
+        }
+
+    def new_notes(self, notes):
+        ns = []
+        for n in notes:
+            note = self.song.Notes[n]
+            # print note
+            # if has_prop(note, 'Bended'):
+            #     print note.Properties.Property
+            ns.append({
+                '@time': self.time,
+                # '@linkNext': 0,
+                # '@accent': 0,
+                # '@bend': 0,
+                '@fret': get_prop(note, 'Fret'),
+                # '@hammerOn': 0,
+                # '@harmonic': 0,
+                # '@hopo': 0,
+                # '@ignore': 0,
+                # '@leftHand': -1,
+                # '@mute': 0,
+                # '@palmMute': 0,
+                # '@pluck': -1,
+                # '@pullOff': 0,
+                # '@slap': -1,
+                # '@slideTo': -1,
+                '@string': get_prop(note, 'String'),
+                # '@sustain': 0.0,
+                # '@tremolo': 0,
+                # '@harmonicPinch': 0,
+                # '@pickDirection': 0,
+                # '@rightHand': -1,
+                # '@slideUnpitchTo': -1,
+                # '@tap': 0,
+                # '@vibrato': 0,
+            })
+
+        if len(ns) > 1:
+            self.chords.append(self.new_chord(ns))
+        else:
+            self.notes += ns
+
+    def new_beat(self, beat):
+        # TODO tone change
+        if 'Notes' in beat:
+            if type(beat.Notes) is not list:
+                beat.Notes = [beat.Notes]
+
+            self.new_notes(beat.Notes)
+
+        rhythm = self.song.Rhythms[beat.Rhythm['@ref']]
+
+        inc = 1.0 / (2**DURATIONS[rhythm.NoteValue]) / self.beats_per_bar
+        self.measure_offset += inc
+        self.time = self.timefun(self.measure + self.measure_offset)
+
+    def new_bar(self, bar, bar_settings):
+        # print bar_settings
+        num, den = map(int, bar_settings.Time.split('/'))
+        self.beats_per_bar = 4.0 * num / den
+
+        # TODO repeats
+
+        if 'Section' in bar_settings:
+            self.sections.append({
+                '@name': bar_settings.Section.Text,
+                '@number': len(self.sections),
+                '@startTime': self.timefun(self.measure)
+            })
+
+        for i in range(int(self.beats_per_bar)):
+            self.ebeats.append({
+                '@time': self.timefun(self.measure + i / self.beats_per_bar),
+                '@measure': self.measure + 1 if i == 0 else -1
+            })
+
+        self.measure_offset = 0.0
+        for b in self.song.Voices[bar.Voices[0]].Beats:
+            beat = self.song.Beats[b]
+            self.new_beat(beat)
+
+        # TODO logic for repeats
+
+    def run(self):
+        self.clear()
+        while self.bar_idx < len(self.song.MasterBars):
+            bar_settings = self.song.MasterBars[self.bar_idx]
+            bar = self.song.Bars[bar_settings.Bars[self.track['@id']]]
+
+            self.new_bar(bar, bar_settings)
+
+            self.bar_idx += 1
+            self.measure += 1
+
+        return self.json()
+
 
 if __name__ == '__main__':
     from docopt import docopt
-    import xml.dom.minidom
+    from xml.dom.minidom import parseString
 
     args = docopt(__doc__)
 
     gp, sync = load_goplayalong(args['FILE'])
     sng = SngBuilder(gp, gp.Tracks[0], sync)
-    sng.run()
 
-    x = xmlhelpers.json2xml('song', sng.get())
-    print xml.dom.minidom.parseString(x).toprettyxml()
+    x = json2xml('song', sng.run())
+    print parseString(x).toprettyxml()

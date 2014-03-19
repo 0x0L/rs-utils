@@ -8,7 +8,7 @@ class AttrDict(dict):
         self.__dict__ = self
 
 
-def DefaultSanitizer(v):
+def DefaultConverter(v):
     try:
         return int(v)
     except (ValueError, TypeError):
@@ -23,7 +23,7 @@ def DefaultSanitizer(v):
 
 
 # To be removed !
-def xml2AttrDict(text, sanitizer=DefaultSanitizer):
+def xml2AttrDict(text, sanitizer=DefaultConverter):
     xml = ET.fromstring(text)
 
     def helper(node):
@@ -119,6 +119,6 @@ def createJsonElem(node, processor):
     return AttrDict(d)
 
 
-def xml2json(text, processor=DefaultSanitizer):
+def xml2json(text, processor=DefaultConverter):
     xml = ET.fromstring(text)
     return createJsonElem(xml, processor)
