@@ -43,6 +43,40 @@ class BitReader:
             result = result | (self.read_bit() << i)
         return result
 
+def filesystem(data):
+    from itertools import takewhile
+
+    SECTOR_SIZE = 0x1000
+
+    fs = {}
+    data = data[4:]  # skip header BCFS
+
+    def getint(pos):
+        return struct.unpack('<L', data[pos:pos + 4])[0]
+
+    offset = 0
+    while offset + SECTOR_SIZE + 3 < len(data):
+        if getint(offset) == 2:
+            content = ''
+            name = ''.join(takewhile(lambda x: ord(x) != 0, data[offset + 4:]))
+            size = getint(offset + 0x8c)
+
+            blocks_offset = offset + 0x94
+
+            block_count = 0
+            block_id = getint(blocks_offset + 4 * block_count)
+            while block_id != 0:
+                offset = block_id * SECTOR_SIZE
+                content += data[offset:offset + SECTOR_SIZE]
+
+                block_count += 1
+                block_id = getint(blocks_offset + 4 * block_count)
+
+            fs[name] = content[:size]
+
+        offset += SECTOR_SIZE
+
+    return fs
 
 def read_gp(filename):
     data = open(filename, 'rb')
@@ -70,10 +104,13 @@ def read_gp(filename):
                 result.append(io.read_byte())
 
     uncompressed = ''.join(map(chr, result))
-    gp_xml = uncompressed[
-        uncompressed.find('<GPIF>') - 39:uncompressed.find('</GPIF>') + 7]
 
-    return gp_xml
+    # gp_xml = uncompressed[
+    #     uncompressed.find('<GPIF>') - 39:uncompressed.find('</GPIF>') + 7]
+    # return gp_xml
+
+    fs = filesystem(uncompressed)
+    return fs['score.gpif']
 
 if __name__ == '__main__':
     from docopt import docopt
