@@ -12,10 +12,9 @@ from numpy import interp
 import os
 import re
 
-from gpx2xml import read_gp
+import gpx2xml
 from xmlhelpers import json2xml, xml2json, DefaultConverter, InlineContent
 
-OFFSET = -10.0
 
 DURATIONS = {
     'Whole': -2,
@@ -27,16 +26,28 @@ DURATIONS = {
     '64th': 4
 }
 
-STANDARD_TUNING = [40, 45, 50, 55, 59, 64]
+# PROPERTIES = {
+#     'Brush': 'Direction',
+#     'CapoFret': 'Fret',
+#     'HarmonicType': 'HType',
+#     'Muted': 'Enable',
+#     'PalmMuted': 'Enable',
+#     'Popped': 'Enable',
+#     'Slapped': 'Enable',
+#     'Slide': 'Flags',
+#     'Tuning': 'Pitches',
+# }
 
-PROPERTIES = {
-    'Tuning': 'Pitches',
-    'CapoFret': 'Fret',
-    'Slide': 'Flags'
-}
+
+def clean_prop(o):
+    if not 'Property' in o.Properties:
+        o.Properties['Property'] = []
+    if not issubclass(type(o.Properties.Property), list):
+        o.Properties.Property = [o.Properties.Property]
 
 
 def has_prop(o, prop_name):
+    clean_prop(o)
     for p in o.Properties.Property:
         if p['@name'] == prop_name:
             return True
@@ -44,17 +55,17 @@ def has_prop(o, prop_name):
 
 
 def get_prop(o, prop_name, default=None):
+    clean_prop(o)
     for p in o.Properties.Property:
         if p['@name'] == prop_name:
-            if prop_name in PROPERTIES:
-                return p[PROPERTIES[prop_name]]
-            else:
-                return p[prop_name]
-
+            u = p.keys()
+            u.remove('@name')
+            return p[u[0]]
     return default
 
 
 def get_tuning(track):
+    STANDARD_TUNING = [40, 45, 50, 55, 59, 64]
     tuning = get_prop(track, 'Tuning', STANDARD_TUNING)
     offset = [a - b for a, b in zip(tuning, STANDARD_TUNING)]
     return {'@string' + str(k): offset[k] for k in range(6)}
@@ -100,10 +111,9 @@ def load_gpx(filename):
             t = x.split(' ')
             if len(t) > 0 and t[0] != DefaultConverter(t[0]):
                 return map(DefaultConverter, t)
-
         return y
 
-    gp = xml2json(read_gp(filename), processor=process)
+    gp = xml2json(gpx2xml.read_gp(filename), processor=process)
 
     # squashing arrays for convience
     for k in ['Track', 'MasterBar', 'Bar', 'Voice', 'Beat', 'Note', 'Rhythm']:
@@ -117,7 +127,7 @@ def load_goplayalong(filename):
 
     sync = [y.split(';') for y in gpa.sync.split('#')[1:]]
     sync = {float(b) + float(db): float(t) / 1000.0 for t, b, db, _ in sync}
-    sync = Bar2Time(sync, OFFSET)
+    sync = Bar2Time(sync, -10.0)
 
     d = os.path.dirname(os.path.abspath(filename))
     gpx = load_gpx(d + os.path.sep + gpa.scoreUrl)
@@ -126,8 +136,6 @@ def load_goplayalong(filename):
 
 
 # TODO
-
-# Arrangement properties
 
 # phrases = [{
 #     '@disparity': 0,
@@ -177,11 +185,6 @@ def load_goplayalong(filename):
 #     '@startTime': 5.672
 # }]
 
-# tones = [{
-#     '@id': 0,
-#     '@time': 45.234
-# }]
-
 
 class SngBuilder:
     def __init__(self, song, track, timefun):
@@ -204,7 +207,7 @@ class SngBuilder:
 
         self.measure = 0
         self.bar_idx = 0
-        self.time = 0.0
+        self.time = self.timefun(0)
         self.beats_per_bar = 0.0
         self.measure_offset = 0.0
 
@@ -308,7 +311,7 @@ class SngBuilder:
             'tones': self.tones
         }
 
-    def new_chord(self, notes):
+    def new_chord(self, brush, notes):
         return {
             '@time': self.time,
             # '@linkNext': 0,
@@ -316,66 +319,86 @@ class SngBuilder:
             # '@chordId': 4,
             # '@fretHandMute': 0,
             # '@highDensity': 0,
-            # '@ignore': 0,
+            '@ignore': 0,
             # '@palmMute': 0,
             # '@hopo': 0,
             # '@strum': 'down',
             'chordNotes': InlineContent(notes)
         }
 
-    def new_notes(self, notes):
+    def new_notes(self, beat, notes):
         ns = []
         for n in notes:
             note = self.song.Notes[n]
             # print note
+
+            # if has_prop(note, 'Slide'):
+                # print note.Properties.Property
+                # print get_prop(note, 'Slide')
+
             # if has_prop(note, 'Bended'):
             #     print note.Properties.Property
+
+            harmonic = get_prop(note, 'HarmonicType')
+            brush = get_prop(beat, 'Brush')
+
             ns.append({
                 '@time': self.time,
-                # '@linkNext': 0,
-                # '@accent': 0,
+                '@linkNext': int('Tie' in note and note.Tie['@origin']),
+                '@accent': int('Accent' in note),
                 # '@bend': 0,
                 '@fret': get_prop(note, 'Fret'),
                 # '@hammerOn': 0,
-                # '@harmonic': 0,
+                '@harmonic': int(harmonic == 'Artificial'),
                 # '@hopo': 0,
-                # '@ignore': 0,
+                '@ignore': 0,
                 # '@leftHand': -1,
-                # '@mute': 0,
-                # '@palmMute': 0,
-                # '@pluck': -1,
+                '@mute': int(has_prop(note, 'Muted')),
+                '@palmMute': int(has_prop(note, 'PalmMuted')),
+                '@pluck': int(has_prop(beat, 'Popped')),
                 # '@pullOff': 0,
-                # '@slap': -1,
+                '@slap': int(has_prop(beat, 'Slapped')),
                 # '@slideTo': -1,
                 '@string': get_prop(note, 'String'),
                 # '@sustain': 0.0,
-                # '@tremolo': 0,
-                # '@harmonicPinch': 0,
+                '@tremolo': int('Tremolo' in beat),
+                '@harmonicPinch': int(harmonic == 'Pinch'),
                 # '@pickDirection': 0,
                 # '@rightHand': -1,
                 # '@slideUnpitchTo': -1,
-                # '@tap': 0,
-                # '@vibrato': 0,
+                '@tap': int(has_prop(note, 'Tapped')),
+                '@vibrato': int('Vibrato' in note)
             })
 
         if len(ns) > 1:
-            self.chords.append(self.new_chord(ns))
+            self.chords.append(self.new_chord(brush, ns))
         else:
             self.notes += ns
 
     def new_beat(self, beat):
-        # TODO tone change
+        rhythm = self.song.Rhythms[beat.Rhythm['@ref']]
+        inc = 1.0 / (2**DURATIONS[rhythm.NoteValue]) / self.beats_per_bar
+
+        if 'GraceNotes' in beat and beat.GraceNotes == 'BeforeBeat':
+            self.measure_offset -= inc
+            self.time = self.timefun(self.measure + self.measure_offset)
+
+        if 'FreeText' in beat:
+            self.tones.append({
+                '@id': 0,  # TODO
+                '@time': self.time
+            })
+
         if 'Notes' in beat:
             if type(beat.Notes) is not list:
                 beat.Notes = [beat.Notes]
 
-            self.new_notes(beat.Notes)
+            self.new_notes(beat, beat.Notes)
 
-        rhythm = self.song.Rhythms[beat.Rhythm['@ref']]
-
-        inc = 1.0 / (2**DURATIONS[rhythm.NoteValue]) / self.beats_per_bar
         self.measure_offset += inc
         self.time = self.timefun(self.measure + self.measure_offset)
+        if 'GraceNotes' in beat and beat.GraceNotes == 'OnBeat':
+            self.measure_offset -= inc
 
     def new_bar(self, bar, bar_settings):
         # print bar_settings

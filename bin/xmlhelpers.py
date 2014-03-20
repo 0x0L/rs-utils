@@ -19,6 +19,11 @@ def DefaultConverter(v):
     except (ValueError, TypeError):
         pass
 
+    if v == 'true':
+        return True
+    elif v == 'false':
+        return False
+
     return v
 
 
