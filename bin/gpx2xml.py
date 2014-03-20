@@ -8,6 +8,93 @@ Usage:
 """
 
 import struct
+from numpy import interp
+from xmlhelpers import xml2json, DefaultConverter
+import os
+
+
+def clean_prop(o):
+    if not 'Property' in o.Properties:
+        o.Properties['Property'] = []
+    if not issubclass(type(o.Properties.Property), list):
+        o.Properties.Property = [o.Properties.Property]
+
+
+def has_prop(o, prop_name):
+    clean_prop(o)
+    for p in o.Properties.Property:
+        if p['@name'] == prop_name:
+            return True
+    return False
+
+
+def get_prop(o, prop_name, default=None):
+    clean_prop(o)
+    for p in o.Properties.Property:
+        if p['@name'] == prop_name:
+            u = p.keys()
+            u.remove('@name')
+            return p[u[0]]
+    return default
+
+
+class Bar2Time:
+    def __init__(self, mapping, offset):
+        self.offset = offset
+        self._X = []
+        self._Y = []
+        for x, y in iter(sorted(mapping.iteritems())):
+            self._X.append(x)
+            self._Y.append(y)
+
+    @staticmethod
+    def __extrapolate__(z, xs, ys):
+        x1, x2 = xs
+        y1, y2 = ys
+        alpha = (y2 - y1) / (x2 - x1)
+        return y1 + alpha * (z - x1)
+
+    def __call__(self, z):
+        if z < self._X[0]:
+            t = Bar2Time.__extrapolate__(z, self._X[:2], self._Y[:2])
+        elif z > self._X[-1]:
+            t = Bar2Time.__extrapolate__(z, self._X[-2:], self._Y[-2:])
+        else:
+            t = interp(z, self._X, self._Y)
+
+        return int(1000 * (t - self.offset)) / 1000.0
+
+
+def load_gpx(filename):
+    def process(x):
+        """Transform attributes such as '1 2 3' in [1, 2, 3]"""
+        y = DefaultConverter(x)
+        if y == x:
+            t = x.split(' ')
+            if len(t) > 0 and t[0] != DefaultConverter(t[0]):
+                return map(DefaultConverter, t)
+        return y
+
+    gp = xml2json(read_gp(filename), processor=process)
+
+    # squashing arrays for convience
+    for k in ['Track', 'MasterBar', 'Bar', 'Voice', 'Beat', 'Note', 'Rhythm']:
+        gp[k + 's'] = gp[k + 's'][k]
+
+    return gp
+
+
+def load_goplayalong(filename):
+    gpa = xml2json(open(filename).read())
+
+    sync = [y.split(';') for y in gpa.sync.split('#')[1:]]
+    sync = {float(b) + float(db): float(t) / 1000.0 for t, b, db, _ in sync}
+    sync = Bar2Time(sync, -10.0)
+
+    d = os.path.dirname(os.path.abspath(filename))
+    gpx = load_gpx(d + os.path.sep + gpa.scoreUrl)
+
+    return gpx, sync
 
 
 class BitReader:

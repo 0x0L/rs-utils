@@ -8,119 +8,30 @@ Usage:
 """
 
 from time import strftime
-from numpy import interp
-import os
 import re
 
-import gpx2xml
-from xmlhelpers import json2xml, xml2json, DefaultConverter, InlineContent
+from gpx2xml import has_prop, get_prop, load_goplayalong, Bar2Time
+from xmlhelpers import json2xml, InlineContent
 
 
 DURATIONS = {
+    'Long': -4,
+    'DoubleWhole': -3,
     'Whole': -2,
     'Half': -1,
     'Quarter': 0,
     'Eighth': 1,
     '16th': 2,
     '32nd': 3,
-    '64th': 4
+    '64th': 4,
+    '128th': 5,
+    '256th': 6,
 }
 
 
-def clean_prop(o):
-    if not 'Property' in o.Properties:
-        o.Properties['Property'] = []
-    if not issubclass(type(o.Properties.Property), list):
-        o.Properties.Property = [o.Properties.Property]
-
-
-def has_prop(o, prop_name):
-    clean_prop(o)
-    for p in o.Properties.Property:
-        if p['@name'] == prop_name:
-            return True
-    return False
-
-
-def get_prop(o, prop_name, default=None):
-    clean_prop(o)
-    for p in o.Properties.Property:
-        if p['@name'] == prop_name:
-            u = p.keys()
-            u.remove('@name')
-            return p[u[0]]
-    return default
-
-
-def get_tuning(track):
-    STANDARD_TUNING = [40, 45, 50, 55, 59, 64]
-    tuning = get_prop(track, 'Tuning', STANDARD_TUNING)
-    offset = [a - b for a, b in zip(tuning, STANDARD_TUNING)]
-    return {'@string' + str(k): offset[k] for k in range(6)}
-
-
-class Bar2Time:
-    def __init__(self, mapping, offset):
-        self.offset = offset
-        self._X = []
-        self._Y = []
-        for x, y in iter(sorted(mapping.iteritems())):
-            self._X.append(x)
-            self._Y.append(y)
-
-    @staticmethod
-    def __extrapolate__(z, xs, ys):
-        x1, x2 = xs
-        y1, y2 = ys
-        alpha = (y2 - y1) / (x2 - x1)
-        return y1 + alpha * (z - x1)
-
-    def __call__(self, z):
-        if z < self._X[0]:
-            t = Bar2Time.__extrapolate__(z, self._X[:2], self._Y[:2])
-        elif z > self._X[-1]:
-            t = Bar2Time.__extrapolate__(z, self._X[-2:], self._Y[-2:])
-        else:
-            t = interp(z, self._X, self._Y)
-
-        return int(1000 * (t - self.offset)) / 1000.0
-
-
 def text_for_sort(text):
-    x = re.sub(r'(a|an|and|the)(\s+)', '', text, flags=re.IGNORECASE)
+    x = re.sub(r'(a|an|the)(\s+)', '', text, flags=re.IGNORECASE)
     return x.capitalize()
-
-
-def load_gpx(filename):
-    def process(x):
-        """Transform attributes such as '1 2 3' in [1, 2, 3]"""
-        y = DefaultConverter(x)
-        if y == x:
-            t = x.split(' ')
-            if len(t) > 0 and t[0] != DefaultConverter(t[0]):
-                return map(DefaultConverter, t)
-        return y
-
-    gp = xml2json(gpx2xml.read_gp(filename), processor=process)
-
-    # squashing arrays for convience
-    for k in ['Track', 'MasterBar', 'Bar', 'Voice', 'Beat', 'Note', 'Rhythm']:
-        gp[k + 's'] = gp[k + 's'][k]
-
-    return gp
-
-
-def load_goplayalong(filename):
-    gpa = xml2json(open(filename).read())
-
-    sync = [y.split(';') for y in gpa.sync.split('#')[1:]]
-    sync = {float(b) + float(db): float(t) / 1000.0 for t, b, db, _ in sync}
-    sync = Bar2Time(sync, -10.0)
-
-    d = os.path.dirname(os.path.abspath(filename))
-    gpx = load_gpx(d + os.path.sep + gpa.scoreUrl)
-
-    return gpx, sync
 
 
 # TODO
@@ -200,6 +111,12 @@ class SngBuilder:
             '@fret5': -1
         }]
 
+    def get_tuning(self):
+        STANDARD_TUNING = [40, 45, 50, 55, 59, 64]
+        tuning = get_prop(self.track, 'Tuning', STANDARD_TUNING)
+        offset = [a - b for a, b in zip(tuning, STANDARD_TUNING)]
+        return {'@string' + str(k): offset[k] for k in range(6)}
+
     def json(self):
         score = self.song.Score
 
@@ -261,7 +178,7 @@ class SngBuilder:
             'songNameSort': text_for_sort(self.track.Name),
             'startBeat': 0.000,
             'averageTempo': averageTempo,
-            'tuning': get_tuning(self.track),
+            'tuning': self.get_tuning(),
             'capo': get_prop(self.track, 'CapoFret', 0),
             'artistName': score.Artist,
             'artistNameSort': text_for_sort(score.Artist),
