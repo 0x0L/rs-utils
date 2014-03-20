@@ -18,6 +18,7 @@ HSAN_KEYS = [
     'SongNameSort', 'SongYear', 'Tuning'
 ]
 
+# TODO use json2xml instead of ugly templates
 XBLOCK_TEMPLATE = """
     <entity id="%(persistent_id)s" modelName="RSEnumerable_Song" name="%(SongKey)s" iterations="0">
       <properties>

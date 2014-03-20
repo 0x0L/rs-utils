@@ -323,9 +323,9 @@ def process_level(sng, level):
 
     def is_arpeggio(u):
         return sng.chordTemplates[u.chordId].mask & CHORD_MASK_ARPEGGIO
-    level.fingerPrints.append(filter(is_arpeggio, level.handShapes))
     level.fingerPrints.append(filter(lambda x: not is_arpeggio(x),
                                      level.handShapes))
+    level.fingerPrints.append(filter(is_arpeggio, level.handShapes))
 
     for note in level.notes:
         process_note(sng, note)

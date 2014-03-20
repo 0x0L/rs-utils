@@ -194,10 +194,6 @@ def read_gp(filename):
 
     uncompressed = ''.join(map(chr, result))
 
-    # gp_xml = uncompressed[
-    #     uncompressed.find('<GPIF>') - 39:uncompressed.find('</GPIF>') + 7]
-    # return gp_xml
-
     fs = filesystem(uncompressed)
     return fs['score.gpif']
 
