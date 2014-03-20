@@ -132,109 +132,110 @@ class SngBuilder:
         averageTempo = int(averageTempo * 1000) / 1000.0
 
         arrangementProperties = {
-            '@represent': 1,
-            '@bonusArr': 0,
-            '@standardTuning': 1,
-            '@nonStandardChords': 0,
             '@barreChords': 0,
-            '@powerChords': 1,
-            '@dropDPower': 0,
-            '@openChords': 1,
-            '@fingerPicking': 0,
-            '@pickDirection': 0,
-            '@doubleStops': 1,
-            '@palmMutes': 1,
-            '@harmonics': 1,
-            '@pinchHarmonics': 0,
-            '@hopo': 1,
-            '@tremolo': 0,
-            '@slides': 1,
-            '@unpitchedSlides': 0,
-            '@bends': 1,
-            '@tapping': 0,
-            '@vibrato': 0,
-            '@fretHandMutes': 0,
-            '@slapPop': 0,
-            '@twoFingerPicking': 0,
-            '@fifthsAndOctaves': 0,
-            '@syncopation': 0,
             '@bassPick': 0,
-            '@sustain': 1,
+            '@bends': int(any(n['@bend'] for n in self.notes)),
+            '@bonusArr': 0,
+            '@doubleStops': 1,
+            '@dropDPower': 0,
+            '@fifthsAndOctaves': 0,
+            '@fingerPicking': 0,
+            '@fretHandMutes': int(any(n['@fretHandMute'] for n in self.chords)),
+            '@harmonics': int(any(n['@harmonic'] for n in self.notes)),
+            '@hopo': int(any(n['@hopo'] for n in self.chords + self.notes)),
+            '@nonStandardChords': 0,
+            '@openChords': 1,
+            '@palmMutes': int(any(n['@palmMute'] for n in self.chords + self.notes)),
+            '@pathBass': 0,
             '@pathLead': 1,
             '@pathRhythm': 0,
-            '@pathBass': 0
+            '@pickDirection': 0,
+            '@pinchHarmonics': int(any(n['@harmonicPinch'] for n in self.notes)),
+            '@powerChords': 1,
+            '@represent': 1,
+            '@slapPop': int(any(n['@slap'] or n['@pluck'] for n in self.notes)),
+            '@slides': int(any(n['@slideTo'] != -1 for n in self.notes)),
+            '@standardTuning': 1,
+            '@sustain': 1,
+            '@syncopation': 0,
+            '@tapping': int(any(n['@tap'] for n in self.notes)),
+            '@tremolo': int(any(n['@tremolo'] for n in self.notes)),
+            '@twoFingerPicking': 0,
+            '@unpitchedSlides': int(any(n['@slideUnpitchTo'] != -1 for n in self.notes)),
+            '@vibrato': int(any(n['@vibrato'] for n in self.notes))
         }
 
         return {
             '@version': 8,
-            'title': score.Title,
-            'arrangement': self.track.Name,
-            'wavefilepath': '',
-            'part': 1,
-            'offset': offset,
-            'centOffset': centOffset,
-            'songLength': songLength,
-            'internalName': internalName,
-            'songNameSort': text_for_sort(self.track.Name),
-            'startBeat': 0.000,
-            'averageTempo': averageTempo,
-            'tuning': self.get_tuning(),
-            'capo': get_prop(self.track, 'CapoFret', 0),
-            'artistName': score.Artist,
-            'artistNameSort': text_for_sort(score.Artist),
+            'albumArt': internalName,
             'albumName': score.Album,
             'albumNameSort': text_for_sort(score.Album),
             'albumYear': score.Copyright,
-            'albumArt': internalName,
-            'crowdSpeed': 1,
+            'arrangement': self.track.Name,
             'arrangementProperties': arrangementProperties,
-            'lastConversionDateTime': strftime('%F %T'),
-            'phrases': self.phrases,
-            'phraseIterations': self.phraseIterations,
-            'newLinkedDiffs': [],
-            'linkedDiffs': [],
-            'phraseProperties': [],
+            'artistName': score.Artist,
+            'artistNameSort': text_for_sort(score.Artist),
+            'averageTempo': averageTempo,
+            'capo': get_prop(self.track, 'CapoFret', 0),
+            'centOffset': centOffset,
             'chordTemplates': self.chordTemplates,
-            'fretHandMuteTemplates': [],
+            'crowdSpeed': 1,
             'ebeats': self.ebeats,
-            'sections': self.sections,
             'events': self.events,
-            'transcriptionTrack': {
-                '@difficulty': -1,
-                'notes': [],
-                'chords': [],
-                'anchors': [],
-                'handShapes': []
-            },
+            'fretHandMuteTemplates': [],
+            'internalName': internalName,
+            'lastConversionDateTime': strftime('%F %T'),
             'levels': [{
                 '@difficulty': 0,
-                'notes': self.notes,
-                'chords': self.chords,
                 'anchors': self.anchors,
+                'chords': self.chords,
+                'fretHandMutes': [],
                 'handShapes': self.handShapes,
-                'fretHandMutes': []
+                'notes': self.notes
             }],
-            'tones': self.tones,
+            'linkedDiffs': [],
+            'newLinkedDiffs': [],
+            'offset': offset,
+            'part': part,
+            'phraseIterations': self.phraseIterations,
+            'phraseProperties': [],
+            'phrases': self.phrases,
+            'sections': self.sections,
+            'songLength': songLength,
+            'songNameSort': text_for_sort(self.track.Name),
+            'startBeat': 0.000,
+            'title': score.Title,
             'tone_A': '',
             'tone_B': '',
             'tone_C': '',
             'tone_D': '',
             'tone_Base': '',
-            'tone_Multiplayer': ''
+            'tone_Multiplayer': '',
+            'tones': self.tones,
+            'transcriptionTrack': {
+                '@difficulty': -1,
+                'anchors': [],
+                'chords': [],
+                'handShapes': [],
+                'notes': []
+            },
+            'tuning': self.get_tuning(),
+            'wavefilepath': ''
         }
 
     def new_chord(self, brush, notes):
+        # TODO check any or all ?
         return {
-            '@time': self.time,
-            '@linkNext': 0,
-            '@accent': 0,
+            '@accent': int(any(n['@accent'] for n in notes)),
             '@chordId': 0,
-            '@fretHandMute': 0,
+            '@fretHandMute': int(any(n['@mute'] for n in notes)),
             '@highDensity': 0,
-            '@ignore': 0,
-            '@palmMute': 0,
-            '@hopo': 0,
-            '@strum': 'down',
+            '@hopo': int(any(n['@hopo'] for n in notes)),
+            '@ignore': int(any(n['@ignore'] for n in notes)),
+            '@linkNext': int(any(n['@linkNext'] for n in notes)),
+            '@palmMute': int(any(n['@palmMute'] for n in notes)),
+            '@strum': 'down',  # TODO from brush
+            '@time': self.time,
             'chordNotes': InlineContent(notes)
         }
 
@@ -251,34 +252,38 @@ class SngBuilder:
             # if has_prop(note, 'Bended'):
             #     print note.Properties.Property
 
+            # TODO slide, bend, hopo
+            # sustain
+            # left/rightHand ?
+
             harmonic = get_prop(note, 'HarmonicType')
             brush = get_prop(beat, 'Brush')
 
             ns.append({
-                '@time': self.time,
-                '@linkNext': int('Tie' in note and note.Tie['@origin']),
                 '@accent': int('Accent' in note),
                 '@bend': 0,
                 '@fret': get_prop(note, 'Fret'),
                 '@hammerOn': 0,
                 '@harmonic': int(harmonic == 'Artificial'),
+                '@harmonicPinch': int(harmonic == 'Pinch'),
                 '@hopo': 0,
                 '@ignore': 0,
                 '@leftHand': -1,
+                '@linkNext': int('Tie' in note and note.Tie['@origin']),
                 '@mute': int(has_prop(note, 'Muted')),
                 '@palmMute': int(has_prop(note, 'PalmMuted')),
+                '@pickDirection': 0,
                 '@pluck': int(has_prop(beat, 'Popped')),
                 '@pullOff': 0,
+                '@rightHand': -1,
                 '@slap': int(has_prop(beat, 'Slapped')),
                 '@slideTo': -1,
+                '@slideUnpitchTo': -1,
                 '@string': get_prop(note, 'String'),
                 '@sustain': 0.0,
-                '@tremolo': int('Tremolo' in beat),
-                '@harmonicPinch': int(harmonic == 'Pinch'),
-                '@pickDirection': 0,
-                '@rightHand': -1,
-                '@slideUnpitchTo': -1,
                 '@tap': int(has_prop(note, 'Tapped')),
+                '@time': self.time,
+                '@tremolo': int('Tremolo' in beat),
                 '@vibrato': int('Vibrato' in note),
                 'bendValues': []
             })
@@ -357,8 +362,8 @@ class SngBuilder:
 
             self.new_bar(bar, bar_settings)
 
-            self.bar_idx += 1
-            self.measure += 1
+            self.bar_idx += 1  # no repeats
+            self.measure += 1  # counting repeats
 
         return self.json()
 
