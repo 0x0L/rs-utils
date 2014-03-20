@@ -502,7 +502,10 @@ def process_sng(sng):
     """Compile SNG."""
 
     # Sanitize a few things
-    if not 'internalName' in sng:
+    if sng.title == AttrDict({}):
+        sng.title = 'NONAME'
+
+    if not 'internalName' in sng or sng.internalName == AttrDict({}):
         sng['internalName'] = sng.title
 
     if not 'albumNameSort' in sng:
@@ -541,7 +544,7 @@ def process_sng(sng):
     process_phrase_iterations(sng)
 
     for nld in sng.newLinkedDiffs:
-        if not type(nld.phraseCount) is list:
+        if not issubclass(type(nld.nld_phrase), list):
             nld.nld_phrase = [nld.nld_phrase]
         nld.nld_phrase = [x.id for x in nld.nld_phrase]
 
@@ -721,8 +724,8 @@ def manifest_header(manifest):
     }
 
 
-def compile_xml(filename):
-    sng = xml2AttrDict(open(filename, 'r').read())
+def compile_xml(text):
+    sng = xml2AttrDict(text)
     process_sng(sng)
     return sng
 
@@ -734,8 +737,9 @@ if __name__ == '__main__':
 
     for f in args['FILE']:
         print 'Processing', f
+        data = open(f, 'r').read()
 
-        sng = compile_xml(f)
+        sng = compile_xml(data)
         manifest = build_manifest(sng)
 
         filename = manifest['ManifestUrn'][21:]

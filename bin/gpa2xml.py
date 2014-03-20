@@ -137,36 +137,6 @@ def load_goplayalong(filename):
 
 # TODO
 
-# phrases = [{
-#     '@disparity': 0,
-#     '@ignore': 0,
-#     '@maxDifficulty': 0,
-#     '@name': 'COUNT',
-#     '@solo': 0
-# }]
-
-# phraseIterations = [{
-#     '@time': 0.000,
-#     '@phraseId': 0,
-#     '@variation': ''
-# }]
-
-# chordTemplates = [{
-#     '@chordName': 'F#5',
-#     '@displayName': 'F#5',
-#     '@finger0': -1,
-#     '@finger1': -1,
-#     '@finger2': 1,
-#     '@finger3': 1,
-#     '@finger4': -1,
-#     '@finger5': -1,
-#     '@fret0': -1,
-#     '@fret1': -1,
-#     '@fret2': 11,
-#     '@fret3': 11,
-#     '@fret4': -1,
-#     '@fret5': -1
-# }]
 
 # events = [{
 #     '@time': 10.000,
@@ -210,6 +180,37 @@ class SngBuilder:
         self.time = self.timefun(0)
         self.beats_per_bar = 0.0
         self.measure_offset = 0.0
+
+        self.phrases = [{
+            '@disparity': 0,
+            '@ignore': 0,
+            '@maxDifficulty': 0,
+            '@name': 'COUNT',
+            '@solo': 0
+        }]
+
+        self.phraseIterations = [{
+            '@time': 0.000,
+            '@phraseId': 0,
+            '@variation': ''
+        }]
+
+        self.chordTemplates = [{
+            '@chordName': 'F#5',
+            '@displayName': 'F#5',
+            '@finger0': -1,
+            '@finger1': -1,
+            '@finger2': 1,
+            '@finger3': 1,
+            '@finger4': -1,
+            '@finger5': -1,
+            '@fret0': -1,
+            '@fret1': -1,
+            '@fret2': 11,
+            '@fret3': 11,
+            '@fret4': -1,
+            '@fret5': -1
+        }]
 
     def json(self):
         score = self.song.Score
@@ -308,21 +309,27 @@ class SngBuilder:
                 'handShapes': self.handShapes,
                 'fretHandMutes': []
             }],
-            'tones': self.tones
+            'tones': self.tones,
+            'tone_A': '',
+            'tone_B': '',
+            'tone_C': '',
+            'tone_D': '',
+            'tone_Base': '',
+            'tone_Multiplayer': ''
         }
 
     def new_chord(self, brush, notes):
         return {
             '@time': self.time,
-            # '@linkNext': 0,
-            # '@accent': 0,
-            # '@chordId': 4,
-            # '@fretHandMute': 0,
-            # '@highDensity': 0,
+            '@linkNext': 0,
+            '@accent': 0,
+            '@chordId': 0,
+            '@fretHandMute': 0,
+            '@highDensity': 0,
             '@ignore': 0,
-            # '@palmMute': 0,
-            # '@hopo': 0,
-            # '@strum': 'down',
+            '@palmMute': 0,
+            '@hopo': 0,
+            '@strum': 'down',
             'chordNotes': InlineContent(notes)
         }
 
@@ -346,26 +353,26 @@ class SngBuilder:
                 '@time': self.time,
                 '@linkNext': int('Tie' in note and note.Tie['@origin']),
                 '@accent': int('Accent' in note),
-                # '@bend': 0,
+                '@bend': 0,
                 '@fret': get_prop(note, 'Fret'),
-                # '@hammerOn': 0,
+                '@hammerOn': 0,
                 '@harmonic': int(harmonic == 'Artificial'),
-                # '@hopo': 0,
+                '@hopo': 0,
                 '@ignore': 0,
-                # '@leftHand': -1,
+                '@leftHand': -1,
                 '@mute': int(has_prop(note, 'Muted')),
                 '@palmMute': int(has_prop(note, 'PalmMuted')),
                 '@pluck': int(has_prop(beat, 'Popped')),
-                # '@pullOff': 0,
+                '@pullOff': 0,
                 '@slap': int(has_prop(beat, 'Slapped')),
-                # '@slideTo': -1,
+                '@slideTo': -1,
                 '@string': get_prop(note, 'String'),
-                # '@sustain': 0.0,
+                '@sustain': 0.0,
                 '@tremolo': int('Tremolo' in beat),
                 '@harmonicPinch': int(harmonic == 'Pinch'),
-                # '@pickDirection': 0,
-                # '@rightHand': -1,
-                # '@slideUnpitchTo': -1,
+                '@pickDirection': 0,
+                '@rightHand': -1,
+                '@slideUnpitchTo': -1,
                 '@tap': int(has_prop(note, 'Tapped')),
                 '@vibrato': int('Vibrato' in note)
             })
