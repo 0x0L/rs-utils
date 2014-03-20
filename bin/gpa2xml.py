@@ -26,18 +26,6 @@ DURATIONS = {
     '64th': 4
 }
 
-# PROPERTIES = {
-#     'Brush': 'Direction',
-#     'CapoFret': 'Fret',
-#     'HarmonicType': 'HType',
-#     'Muted': 'Enable',
-#     'PalmMuted': 'Enable',
-#     'Popped': 'Enable',
-#     'Slapped': 'Enable',
-#     'Slide': 'Flags',
-#     'Tuning': 'Pitches',
-# }
-
 
 def clean_prop(o):
     if not 'Property' in o.Properties:

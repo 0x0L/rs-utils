@@ -27,33 +27,6 @@ def DefaultConverter(v):
     return v
 
 
-# To be removed !
-def xml2AttrDict(text, sanitizer=DefaultConverter):
-    xml = ET.fromstring(text)
-
-    def helper(node):
-        if node.text and node.text.strip():
-            return sanitizer(node.text.strip())
-        if 'count' in node.attrib:
-            return [helper(x) for x in node]
-
-        d = {}
-        for tag, v in node.attrib.iteritems():
-            d[tag] = sanitizer(v)
-        for child in node:
-            tag, v = child.tag, helper(child)
-            if tag in d and type(d[tag]) == list:
-                d[tag].append(v)
-            elif tag in d:
-                d[tag] = [d[tag], v]
-            else:
-                d[tag] = v
-
-        return AttrDict(d)
-
-    return helper(xml)
-
-
 # To bypass the `count` super element in chordNotes
 class InlineContent(list):
     pass
@@ -102,16 +75,22 @@ def json2xml(name, o):
     return ET.tostring(createXmlElem(name, o))
 
 
-def createJsonElem(node, processor):
+def createJsonElem(node, processor, notag):
     if node.text and node.text.strip():
         return processor(node.text.strip())
+    if ['count'] == node.attrib.keys() \
+            and len(node) == int(node.attrib['count']):
+        return [createJsonElem(x, processor, notag) for x in node]
 
     d = {}
     for tag, v in node.attrib.iteritems():
-        d['@' + tag] = processor(v)
+        if notag:
+            d[tag] = processor(v)
+        else:
+            d['@' + tag] = processor(v)
 
     for child in node:
-        tag, v = child.tag, createJsonElem(child, processor)
+        tag, v = child.tag, createJsonElem(child, processor, notag)
         if tag in d and type(d[tag]) is InlineContent:
             d[tag].append(v)
         elif tag in d:
@@ -122,6 +101,6 @@ def createJsonElem(node, processor):
     return AttrDict(d)
 
 
-def xml2json(text, processor=DefaultConverter):
+def xml2json(text, processor=DefaultConverter, notag=False):
     xml = ET.fromstring(text)
-    return createJsonElem(xml, processor)
+    return createJsonElem(xml, processor, notag)

@@ -10,7 +10,7 @@ import binascii
 import md5
 import json
 
-from xmlhelpers import xml2AttrDict, AttrDict
+from xmlhelpers import xml2json, AttrDict
 import sngparser
 
 MIDI_NOTES = [40, 45, 50, 55, 59, 64]
@@ -219,14 +219,12 @@ def process_chord_note(sng, chord):
     vibrato = 6 * [0]
 
     # not using multiplicative notation (references...)
-    bend = [AttrDict({
-            'usedCount':  0,
-            'bendValues': [AttrDict({
-                'time': 0.0,
-                'step': 0,
-                'UNK': 0
-                }) for _ in range(32)]
-            }) for _ in range(6)]
+    bend = [AttrDict(
+        {'usedCount':  0,
+         'bendValues': [AttrDict({'time': 0.0,
+                                  'step': 0,
+                                  'UNK': 0}) for _ in range(32)]
+         }) for _ in range(6)]
 
     for n in chord.chordNote:
         mask[n.string] = n.mask
@@ -503,10 +501,7 @@ def process_sng(sng):
     """Compile SNG."""
 
     # Sanitize a few things
-    if sng.title == AttrDict({}):
-        sng.title = 'NONAME'
-
-    if not 'internalName' in sng or sng.internalName == AttrDict({}):
+    if not 'internalName' in sng:
         sng['internalName'] = sng.title
 
     if not 'albumNameSort' in sng:
@@ -726,7 +721,7 @@ def manifest_header(manifest):
 
 
 def compile_xml(text):
-    sng = xml2AttrDict(text)
+    sng = xml2json(text, notag=True)
     process_sng(sng)
     manifest = build_manifest(sng)
     return manifest, sngparser.SONG.build(sng)
