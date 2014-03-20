@@ -401,16 +401,16 @@ class SngBuilder:
             self.measure_offset -= inc
 
     def new_bar(self, bar, bar_settings):
-        # print bar_settings
         num, den = map(int, bar_settings.Time.split('/'))
         self.beats_per_bar = 4.0 * num / den
 
-        # TODO repeats
+        if 'Repeat' in bar_settings and bar_settings.Repeat['@start']:
+            self.start_repeat_bar = self.bar_idx
 
         if 'Section' in bar_settings:
             self.sections.append({
                 '@name': bar_settings.Section.Text,
-                '@number': len(self.sections),
+                '@number': len(self.sections),  # TODO
                 '@startTime': self.timefun(self.measure)
             })
 
@@ -425,7 +425,16 @@ class SngBuilder:
             beat = self.song.Beats[b]
             self.new_beat(beat)
 
-        # TODO logic for repeats
+        if 'Repeat' in bar_settings and bar_settings.Repeat['@end']:
+            if not hasattr(self, 'repeats_count'):
+                self.repeats_count = bar_settings.Repeat['@count']
+
+            if self.repeats_count > 1:
+                self.bar_idx = self.start_repeat_bar - 1
+                self.repeats_count -= 1
+            else:
+                del self.repeats_count
+                del self.start_repeat_bar
 
     def run(self):
         self.clear()

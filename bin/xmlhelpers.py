@@ -105,8 +105,6 @@ def json2xml(name, o):
 def createJsonElem(node, processor):
     if node.text and node.text.strip():
         return processor(node.text.strip())
-    if 'count' in node.attrib:
-        return [createJsonElem(x, processor) for x in node]
 
     d = {}
     for tag, v in node.attrib.iteritems():
