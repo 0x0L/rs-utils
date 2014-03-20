@@ -302,7 +302,7 @@ class SngBuilder:
                 'handShapes': []
             },
             'levels': [{
-                '@difficulty': -1,
+                '@difficulty': 0,
                 'notes': self.notes,
                 'chords': self.chords,
                 'anchors': self.anchors,
@@ -374,7 +374,8 @@ class SngBuilder:
                 '@rightHand': -1,
                 '@slideUnpitchTo': -1,
                 '@tap': int(has_prop(note, 'Tapped')),
-                '@vibrato': int('Vibrato' in note)
+                '@vibrato': int('Vibrato' in note),
+                'bendValues': []
             })
 
         if len(ns) > 1:

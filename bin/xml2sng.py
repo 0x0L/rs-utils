@@ -156,7 +156,6 @@ def process_sections(sng):
 
     for s in sng.sections:
         s['startPhraseIterationId'] = phraseiteration(sng, s.startTime, False)
-
         s['endPhraseIterationId'] = phraseiteration(sng, s.endTime, True)
 
         s['isSolo'] = s.name == 'solo'
@@ -219,13 +218,15 @@ def process_chord_note(sng, chord):
     slideunpitcho = 6 * [-1]
     vibrato = 6 * [0]
 
-    # not using multiplicative notation, nasty bug with dic (references...)
-    bend = [AttrDict(
-        {'usedCount':  0,
-         'bendValues': [AttrDict({'time': 0.0,
-                                  'step': 0,
-                                  'UNK': 0}) for _ in range(32)]
-         }) for _ in range(6)]
+    # not using multiplicative notation (references...)
+    bend = [AttrDict({
+            'usedCount':  0,
+            'bendValues': [AttrDict({
+                'time': 0.0,
+                'step': 0,
+                'UNK': 0
+                }) for _ in range(32)]
+            }) for _ in range(6)]
 
     for n in chord.chordNote:
         mask[n.string] = n.mask
@@ -314,8 +315,7 @@ def process_level(sng, level):
         anchor.width = int(anchor.width)
 
     for anchor in level.anchors:
-        anchor['phraseIterationId'] = \
-            phraseiteration(sng, anchor.time, False)
+        anchor['phraseIterationId'] = phraseiteration(sng, anchor.time, False)
 
     for h in level.handShapes:
         h['UNK_startTime'] = 0
@@ -431,6 +431,7 @@ def process_level(sng, level):
     for i, count in enumerate(iter_count):
         level.averageNotesPerIter[i] /= count
 
+    # TODO this code needs rewrite
     p = 0
     i = 0
     while i < len(level.notes):
@@ -563,7 +564,11 @@ def process_sng(sng):
 
 
 def build_manifest(sng):
-    entry_id = md5.new(str(sng)).hexdigest().upper()
+    urn_base = sng.internalName.lower()
+    fullname = sng.internalName + '_' + sng.arrangement
+    urn_full = fullname.lower()
+
+    entry_id = md5.new(urn_full).hexdigest().upper()
 
     # TODO compute routeMask
     sng.arrangementProperties['routeMask'] = 0
@@ -634,10 +639,6 @@ def build_manifest(sng):
     chords = {}
     techniques = {}
     tones = []
-
-    urn_base = sng.internalName.lower()
-    fullname = sng.internalName + '_' + sng.arrangement
-    urn_full = fullname.lower()
 
     return {
         'AlbumArt': 'urn:image:dds:album_' + urn_base,
@@ -727,7 +728,8 @@ def manifest_header(manifest):
 def compile_xml(text):
     sng = xml2AttrDict(text)
     process_sng(sng)
-    return sng
+    manifest = build_manifest(sng)
+    return manifest, sngparser.SONG.build(sng)
 
 
 if __name__ == '__main__':
@@ -739,13 +741,11 @@ if __name__ == '__main__':
         print 'Processing', f
         data = open(f, 'r').read()
 
-        sng = compile_xml(data)
-        manifest = build_manifest(sng)
-
+        manifest, sng = compile_xml(data)
         filename = manifest['ManifestUrn'][21:]
 
         with open(filename + '.sng', 'wb') as stream:
-            stream.write(sngparser.SONG.build(sng))
+            stream.write(sng)
 
         with open(filename + '.json', 'w') as stream:
             d = manifest_header(manifest)
