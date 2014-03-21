@@ -566,7 +566,7 @@ def build_manifest(sng):
     entry_id = md5.new(urn_full).hexdigest().upper()
 
     # TODO compute routeMask
-    sng.arrangementProperties['routeMask'] = 0
+    sng.arrangementProperties['routeMask'] = 1
     arrangementSort = 0
     arrangementType = 0
 

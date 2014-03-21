@@ -10,10 +10,10 @@ import os
 import uuid
 
 COMMON_TAG = \
-    """<urn:uuid:%(uid)s> <http://emergent.net/aweb/1.0/canonical> "%(dpath)s".
-    <urn:uuid:%(uid)s> <http://emergent.net/aweb/1.0/name> "%(fname)s".
-    <urn:uuid:%(uid)s> <http://emergent.net/aweb/1.0/relpath> "%(fullpath)s".
-    """
+"""<urn:uuid:%(uid)s> <http://emergent.net/aweb/1.0/canonical> "%(dpath)s".
+<urn:uuid:%(uid)s> <http://emergent.net/aweb/1.0/name> "%(fname)s".
+<urn:uuid:%(uid)s> <http://emergent.net/aweb/1.0/relpath> "%(fullpath)s".
+"""
 
 TAG_TEMPLATE = \
     '<urn:uuid:%(uid)s> <http://emergent.net/aweb/1.0/tag> "%(tag)s".\n'
@@ -31,9 +31,9 @@ TAGS = {
 # EXT_TEMPLATE for sng, xml, dds, bnk
 # logpath pour sng et bnk sans platform
 EXT_TEMPLATE = \
-    """<urn:uuid:%(uid)s> <http://emergent.net/aweb/1.0/llid> "%(llid)s".
-    <urn:uuid:%(uid)s> <http://emergent.net/aweb/1.0/logpath> "%(logpath)s".
-    """
+"""<urn:uuid:%(uid)s> <http://emergent.net/aweb/1.0/llid> "%(llid)s".
+<urn:uuid:%(uid)s> <http://emergent.net/aweb/1.0/logpath> "%(logpath)s".
+"""
 
 if __name__ == '__main__':
     from docopt import docopt

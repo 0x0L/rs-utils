@@ -84,7 +84,7 @@ class SngBuilder:
             '@disparity': 0,
             '@ignore': 0,
             '@maxDifficulty': 0,
-            '@name': 'deafult',
+            '@name': 'default',
             '@solo': 0
         }]
 

@@ -117,7 +117,7 @@ if __name__ == '__main__':
     if args['--preview']:
         PREVIEW = True
 
-    FILE_ID = int(args['FILE_ID'])
+    FILE_ID = int(args['--fileid'])
     VOLUME = float(args['--volume'])
 
     f = os.path.basename(args['FILE'])

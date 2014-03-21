@@ -76,11 +76,11 @@ if __name__ == '__main__':
 
         with open(f, 'r') as stream:
             manifest = json.loads(stream.read())
-            for persistent_id, e in manifest['Entries']:
+            for persistent_id, e in manifest['Entries'].iteritems():
                 entry = e['Attributes']
 
-                entry['name'] = e['internalName'].lower()
-                entry['persistent_id'] = e['PersistentID'].lower()
+                entry['name'] = entry['DLCKey'].lower()
+                entry['persistent_id'] = entry['PersistentID'].lower()
 
                 xblock += XBLOCK_TEMPLATE % entry
 
