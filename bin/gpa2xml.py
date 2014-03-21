@@ -84,7 +84,7 @@ class SngBuilder:
             '@disparity': 0,
             '@ignore': 0,
             '@maxDifficulty': 0,
-            '@name': 'COUNT',
+            '@name': 'deafult',
             '@solo': 0
         }]
 
@@ -92,23 +92,6 @@ class SngBuilder:
             '@time': 0.000,
             '@phraseId': 0,
             '@variation': ''
-        }]
-
-        self.chordTemplates = [{
-            '@chordName': 'F#5',
-            '@displayName': 'F#5',
-            '@finger0': -1,
-            '@finger1': -1,
-            '@finger2': 1,
-            '@finger3': 1,
-            '@finger4': -1,
-            '@finger5': -1,
-            '@fret0': -1,
-            '@fret1': -1,
-            '@fret2': 11,
-            '@fret3': 11,
-            '@fret4': -1,
-            '@fret5': -1
         }]
 
     def json(self):
@@ -227,18 +210,48 @@ class SngBuilder:
             'wavefilepath': ''
         }
 
-    def new_chord(self, brush, notes):
+    def new_chord(self, beat, notes):
+        chordTemplate = {
+            '@chordName': '',  # TODO
+            '@displayName': '',  # TODO
+            '@finger0': -1,
+            '@finger1': -1,
+            '@finger2': -1,
+            '@finger3': -1,
+            '@finger4': -1,
+            '@finger5': -1,
+            '@fret0': -1,
+            '@fret1': -1,
+            '@fret2': -1,
+            '@fret3': -1,
+            '@fret4': -1,
+            '@fret5': -1
+        }
+        for n in notes:
+            string, fret = n['@string'], n['@fret']
+            chordTemplate['@finger' + str(string)] = -1  # TODO
+            chordTemplate['@fret' + str(string)] = fret
+
+        if 'Arpeggio' in beat:
+            chordTemplate['@displayName'] += '_arp'
+
+        if not chordTemplate in self.chordTemplates:
+            chordId = len(self.chordTemplates)
+            self.chordTemplates.append(chordTemplate)
+        else:
+            chordId = self.chordTemplates.index(chordTemplate)
+
         # TODO check any or all ?
         return {
             '@accent': int(any(n['@accent'] for n in notes)),
-            '@chordId': 0,
+            '@chordId': chordId,
             '@fretHandMute': int(any(n['@mute'] for n in notes)),
             '@highDensity': 0,
             '@hopo': int(any(n['@hopo'] for n in notes)),
             '@ignore': int(any(n['@ignore'] for n in notes)),
             '@linkNext': int(any(n['@linkNext'] for n in notes)),
             '@palmMute': int(any(n['@palmMute'] for n in notes)),
-            '@strum': 'down',  # TODO from brush
+            '@strum': get_prop(beat, 'Direction', 'Down').lower(),
             '@time': self.time,
             'chordNotes': InlineContent(notes)
         }
@@ -261,7 +274,6 @@ class SngBuilder:
             # left/rightHand ?
 
             harmonic = get_prop(note, 'HarmonicType')
-            brush = get_prop(beat, 'Brush')
 
             ns.append({
                 '@accent': int('Accent' in note),
@@ -293,7 +305,7 @@ class SngBuilder:
             })
 
         if len(ns) > 1:
-            self.chords.append(self.new_chord(brush, ns))
+            self.chords.append(self.new_chord(beat, ns))
         else:
             self.notes += ns
 
