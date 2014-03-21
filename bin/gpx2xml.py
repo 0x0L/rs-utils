@@ -8,7 +8,7 @@ Usage:
 """
 
 import struct
-from numpy import interp
+import bisect
 from xmlhelpers import xml2json, DefaultConverter
 import os
 
@@ -48,20 +48,18 @@ class Bar2Time:
             self._Y.append(y)
 
     @staticmethod
-    def __extrapolate__(z, xs, ys):
-        x1, x2 = xs
-        y1, y2 = ys
-        alpha = (y2 - y1) / (x2 - x1)
-        return y1 + alpha * (z - x1)
+    def interpolate(z, xs, ys):
+        x0, x1 = xs
+        y0, y1 = ys
+        return y0 + (y1 - y0) / (x1 - x0) * (z - x0)
 
     def __call__(self, z):
-        if z < self._X[0]:
-            t = Bar2Time.__extrapolate__(z, self._X[:2], self._Y[:2])
-        elif z > self._X[-1]:
-            t = Bar2Time.__extrapolate__(z, self._X[-2:], self._Y[-2:])
-        else:
-            t = interp(z, self._X, self._Y)
-
+        idx = bisect.bisect_left(self._X, z) - 1
+        if idx < 0:
+            idx += 1
+        elif idx == len(self._X) - 1:
+            idx -= 1
+        t = Bar2Time.interpolate(z, self._X[idx:idx+2], self._Y[idx:idx+2])
         return int(1000 * (t - self.offset)) / 1000.0
 
 

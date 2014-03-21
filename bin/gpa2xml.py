@@ -10,7 +10,7 @@ Usage:
 from time import strftime
 import re
 
-from gpx2xml import has_prop, get_prop, load_goplayalong, Bar2Time
+from gpx2xml import has_prop, get_prop, load_goplayalong
 from xmlhelpers import json2xml, InlineContent
 
 
@@ -111,12 +111,6 @@ class SngBuilder:
             '@fret5': -1
         }]
 
-    def get_tuning(self):
-        STANDARD_TUNING = [40, 45, 50, 55, 59, 64]
-        tuning = get_prop(self.track, 'Tuning', STANDARD_TUNING)
-        offset = [a - b for a, b in zip(tuning, STANDARD_TUNING)]
-        return {'@string' + str(k): offset[k] for k in range(6)}
-
     def json(self):
         score = self.song.Score
 
@@ -128,41 +122,51 @@ class SngBuilder:
 
         songLength = self.ebeats[-1]['@time'] if len(self.ebeats) > 0 else 0
         offset = self.timefun.offset
-        averageTempo = len(self.ebeats) / (songLength + offset) * 60
+        averageTempo = (len(self.ebeats) - 1) / (songLength + offset) * 60
         averageTempo = int(averageTempo * 1000) / 1000.0
+
+        STANDARD_TUNING = [40, 45, 50, 55, 59, 64]
+        tuning = get_prop(self.track, 'Tuning', STANDARD_TUNING)
+        standardTuning = int(tuning == STANDARD_TUNING)
+
+        tuning = [a - b for a, b in zip(tuning, STANDARD_TUNING)]
+        tuning = {'@string' + str(k): tuning[k] for k in range(6)}
+
+        def xany(s, prop):
+            return int(any(n[prop] for n in s))
 
         arrangementProperties = {
             '@barreChords': 0,
             '@bassPick': 0,
-            '@bends': int(any(n['@bend'] for n in self.notes)),
+            '@bends': xany(self.notes, '@bend'),
             '@bonusArr': 0,
-            '@doubleStops': 1,
+            '@doubleStops': 0,
             '@dropDPower': 0,
             '@fifthsAndOctaves': 0,
             '@fingerPicking': 0,
-            '@fretHandMutes': int(any(n['@fretHandMute'] for n in self.chords)),
-            '@harmonics': int(any(n['@harmonic'] for n in self.notes)),
-            '@hopo': int(any(n['@hopo'] for n in self.chords + self.notes)),
+            '@fretHandMutes': xany(self.chords, '@fretHandMute'),
+            '@harmonics': xany(self.notes, '@harmonic'),
+            '@hopo': xany(self.chords + self.notes, '@hopo'),
             '@nonStandardChords': 0,
-            '@openChords': 1,
-            '@palmMutes': int(any(n['@palmMute'] for n in self.chords + self.notes)),
+            '@openChords': 0,
+            '@palmMutes': xany(self.chords + self.notes, '@palmMute'),
             '@pathBass': 0,
             '@pathLead': 1,
             '@pathRhythm': 0,
             '@pickDirection': 0,
-            '@pinchHarmonics': int(any(n['@harmonicPinch'] for n in self.notes)),
-            '@powerChords': 1,
+            '@pinchHarmonics': xany(self.notes, '@harmonicPinch'),
+            '@powerChords': 0,
             '@represent': 1,
-            '@slapPop': int(any(n['@slap'] or n['@pluck'] for n in self.notes)),
+            '@slapPop': xany(self.notes, '@pluck') | xany(self.notes, '@slap'),
             '@slides': int(any(n['@slideTo'] != -1 for n in self.notes)),
-            '@standardTuning': 1,
-            '@sustain': 1,
+            '@standardTuning': standardTuning,
+            '@sustain': xany(self.notes, '@sustain'),
             '@syncopation': 0,
-            '@tapping': int(any(n['@tap'] for n in self.notes)),
-            '@tremolo': int(any(n['@tremolo'] for n in self.notes)),
+            '@tapping': xany(self.notes, '@tap'),
+            '@tremolo': xany(self.notes, '@tremolo'),
             '@twoFingerPicking': 0,
             '@unpitchedSlides': int(any(n['@slideUnpitchTo'] != -1 for n in self.notes)),
-            '@vibrato': int(any(n['@vibrato'] for n in self.notes))
+            '@vibrato': xany(self.notes, '@vibrato')
         }
 
         return {
@@ -219,7 +223,7 @@ class SngBuilder:
                 'handShapes': [],
                 'notes': []
             },
-            'tuning': self.get_tuning(),
+            'tuning': tuning,
             'wavefilepath': ''
         }
 

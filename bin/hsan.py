@@ -12,7 +12,7 @@ HSAN_KEYS = [
     'AlbumArt', 'AlbumName', 'AlbumNameSort', 'ArrangementName', 'ArtistName',
     'ArtistNameSort', 'CentOffset', 'DLC', 'DLCKey', 'DNA_Chords', 'DNA_Riffs',
     'DNA_Solo', 'EasyMastery', 'LeaderboardChallengeRating', 'ManifestUrn',
-    'MasterID_RDV', 'MediumMastery', 'NotesEasy',  'NotesHard', 'NotesMedium',
+    'MasterID_RDV', 'MediumMastery', 'NotesEasy', 'NotesHard', 'NotesMedium',
     'PersistentID', 'SKU', 'Shipping', 'SongDiffEasy', 'SongDiffHard',
     'SongDiffMed', 'SongDifficulty', 'SongKey', 'SongLength', 'SongName',
     'SongNameSort', 'SongYear', 'Tuning'
