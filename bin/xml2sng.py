@@ -700,7 +700,7 @@ def build_manifest(sng):
         'ArtistName': sng.artistName,
         'ArtistNameSort': sng.artistNameSort,
         'BlockAsset': 'urn:emergent-world:' + urn_base,
-        'CentOffset': sng.centOffset,
+        'CentOffset': float(sng.centOffset),
         'Chords': chords,
         'ChordTemplates': chordTemplates,
         'DLC': True,
@@ -715,7 +715,7 @@ def build_manifest(sng):
         'LeaderboardChallengeRating': 0,
         'ManifestUrn': 'urn:database:json-db:' + urn_full,
         'MasterID_PS3': -1,
-        'MasterID_RDV': random.randint(0, 2 ** 16 - 1),  # todo VOCAL
+        'MasterID_RDV': random.randint(0, 2 ** 32 - 1),  # todo VOCAL
         'MasterID_XBox360': -1,
         'MaxPhraseDifficulty': sng.metadata.maxDifficulty,
         'MediumMastery': mediumMastery,

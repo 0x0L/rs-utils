@@ -11,6 +11,15 @@ UNK_ID = 0xf908c29a
 UNK_ID2 = 0x10100
 
 
+def hush(x):
+    x = x.lower()
+    ha = 2166136261
+    for c in x:
+        ha *= 16777619
+        ha = ha ^ ord(c)
+        ha &= 0xFFFFFFFF
+    return ha
+
 class BnkGenerator:
     def __init__(self, inputfile, preview=False):
         with open(inputfile, 'rb') as fstream:
@@ -43,7 +52,7 @@ class BnkGenerator:
         return didx
 
 
-    def hierarchy(self):
+    def hierarchy(self, name):
         """Hierarchy section"""
 
         # TODO make this tidier and more readable
@@ -66,7 +75,7 @@ class BnkGenerator:
         action += 3 * chr(0) + chr(4)
         action += struct.pack('<L', self.BANK_ID)
 
-        event = struct.pack('<LLL', random.randint(0, 2 ** 32), 1, self.ACTION_ID)
+        event = struct.pack('<LLL', hush(name), 1, self.ACTION_ID)
 
         hirc = struct.pack('<L', 4)
         hirc += struct.pack('<BL', 2, len(sound)) + sound
@@ -91,10 +100,12 @@ class BnkGenerator:
         def section(section_name, content):
             return section_name + struct.pack('<L', len(content)) + content
 
+        suffix = '_Preview' if self.preview else ''
+
         bnk = section('BKHD', self.header())
         bnk += section('DIDX', self.dataindex())
         bnk += section('DATA', self.data)
-        bnk += section('HIRC', self.hierarchy())
-        bnk += section('STID', self.stringid('Song_' + name))
+        bnk += section('HIRC', self.hierarchy('Play_' + name + suffix))
+        bnk += section('STID', self.stringid('Song_' + name + suffix))
 
         return self.FILE_ID, bnk
