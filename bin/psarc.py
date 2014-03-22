@@ -34,6 +34,8 @@ PC_KEY = 'CB648DF3D12A16BF71701414E69619EC171CCA5D2A142E3E59DE7ADDA18A3A30'
 
 PRF_KEY = '728B369E24ED0134768511021812AFC0A3C25D02065F166B4BCC58CD2644F29E'
 
+CONFIG_KEY = '378B9026EE7DE70B8AF124C1E30978670F9EC8FD5E7285A86442DD73068C0473'
+
 
 def pad(data, blocksize=16):
     """Zeros padding"""
@@ -65,6 +67,13 @@ def decrypt_profile(stream):
     assert(size == len(x))
 
     return json.loads(x[:-1])  # it's a long C string
+
+
+def decrypt_config(stream):
+    """For pkgconfig.ini"""
+    s = stream.read()
+    cipher = AES.new(CONFIG_KEY.decode('hex'))
+    return cipher.decrypt(pad(s))
 
 
 def stdout_same_line(line):

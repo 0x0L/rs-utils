@@ -1,11 +1,3 @@
-#!/usr/bin/env python
-
-"""
-Generate aggregated graph for the package
-
-Usage: xgraph.py DIRS...
-"""
-
 import os
 import uuid
 
@@ -35,35 +27,27 @@ EXT_TEMPLATE = \
 <urn:uuid:%(uid)s> <http://emergent.net/aweb/1.0/logpath> "%(logpath)s".
 """
 
-if __name__ == '__main__':
-    from docopt import docopt
+def run(path):
+    output = ''
+    path = os.path.normpath(path)
 
-    args = docopt(__doc__)
+    for dirpath, _, filenames in os.walk(path):
+        dpath = dirpath[len(path):]
+        for file in filenames:
+            fname, ext = os.path.splitext(file)
 
-    for path in args['DIRS']:
-        output = ''
-        path = os.path.normpath(path)
-        print 'Processing', path
+            if ext in TAGS:
+                fullpath = dpath + '/' + file
+                uid = uuid.uuid3(uuid.NAMESPACE_URL, fullpath)
 
-        for dirpath, _, filenames in os.walk(path):
-            dpath = dirpath[len(path):]
-            for file in filenames:
-                fname, ext = os.path.splitext(file)
+                output += COMMON_TAG % locals()
+                for tag in TAGS[ext]:
+                    output += TAG_TEMPLATE % locals()
 
-                if ext in TAGS:
-                    fullpath = dpath + '/' + file
-                    uid = uuid.uuid3(uuid.NAMESPACE_URL, fullpath)
+                if ext in ['.sng', '.xml', '.dds', '.bnk']:
+                    llid = str(uid)[:8] + '-0000-0000-0000-000000000000'
+                    logpath = fullpath.replace(
+                        'macos/', '').replace('mac/', '')
+                    output += EXT_TEMPLATE % locals()
 
-                    output += COMMON_TAG % locals()
-                    for tag in TAGS[ext]:
-                        output += TAG_TEMPLATE % locals()
-
-                    if ext in ['.sng', '.xml', '.dds', '.bnk']:
-                        llid = str(uid)[:8] + '-0000-0000-0000-000000000000'
-                        logpath = fullpath.replace(
-                            'macos/', '').replace('mac/', '')
-                        output += EXT_TEMPLATE % locals()
-
-        fname = path + '/' + os.path.basename(path) + '_aggregategraph.nt'
-        with open(fname, 'w') as fstream:
-            fstream.write(output)
+    return output

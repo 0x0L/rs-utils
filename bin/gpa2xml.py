@@ -92,6 +92,14 @@ class SngBuilder:
             '@time': 0.000,
             '@phraseId': 0,
             '@variation': ''
+        }, {
+            '@time': 10.000,
+            '@phraseId': 0,
+            '@variation': ''
+        }, {
+            '@time': 52.000,
+            '@phraseId': 0,
+            '@variation': ''
         }]
 
     def json(self):

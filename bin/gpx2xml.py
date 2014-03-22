@@ -92,7 +92,7 @@ def load_goplayalong(filename):
     d = os.path.dirname(os.path.abspath(filename))
     gpx = load_gpx(d + os.path.sep + gpa.scoreUrl)
 
-    return gpx, sync
+    return gpx, gpa.mp3Url, sync
 
 
 class BitReader:

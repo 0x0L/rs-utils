@@ -9,6 +9,7 @@ Usage: xml2sng.py FILE...
 import binascii
 import md5
 import json
+import random
 
 from xmlhelpers import xml2json, AttrDict
 import sngparser
@@ -634,8 +635,61 @@ def build_manifest(sng):
     chords = {}
     techniques = {}
     tones = []
+    sng.tone_Base = "Baptisms of Fire2",
+    tones = [{
+        "GearList": {
+          "Rack1": {
+            "Type": "Racks",
+            "KnobValues": {
+              "Rack_StudioCompressor_Threshold": -18.0,
+              "Rack_StudioCompressor_Ratio": 1.0,
+              "Rack_StudioCompressor_Attack": 55.0,
+              "Rack_StudioCompressor_Release": 120.0
+            },
+            "Key": "Rack_StudioCompressor",
+            "Category": "Dynamics"
+          },
+          "Amp": {
+            "Type": "Amps",
+            "KnobValues": {
+              "Amp_MarshallJTM45_Gain": 88.0,
+              "Amp_MarshallJTM45_Bass": 75.0,
+              "Amp_MarshallJTM45_Mid": 66.0,
+              "Amp_MarshallJTM45_Treble": 66.0,
+              "Amp_MarshallJTM45_Pres": 30.0
+            },
+            "Key": "Amp_MarshallJTM45",
+            "Category": "Amp"
+          },
+          "Cabinet": {
+            "Type": "Cabinets",
+            "KnobValues": {},
+            "Key": "Cab_Marshall1960a_Condenser_OffAxis",
+            "Category": "Condenser_OffAxis"
+          },
+          "PrePedal1": {
+            "Type": "Pedals",
+            "KnobValues": {
+              "Pedal_SpringReverb_Time": 37.0,
+              "Pedal_SpringReverb_Depth": 40.0,
+              "Pedal_SpringReverb_Mix": 53.0
+            },
+            "Key": "Pedal_SpringReverb",
+            "Category": "Reverb"
+          }
+        },
+        "IsCustom": True,
+        "Volume": "-20",
+        "ToneDescriptors": [
+          "$[35750]SPECIAL EFFECT"
+        ],
+        "Key": "Baptisms of Fire2",
+        "NameSeparator": " - ",
+        "Name": "Baptisms of Fire2",
+        "SortOrder": 0.0
+    }]
 
-    return {
+    return urn_full, {
         'AlbumArt': 'urn:image:dds:album_' + urn_base,
         'AlbumName': sng.albumName,
         'AlbumNameSort': sng.albumNameSort,
@@ -661,7 +715,7 @@ def build_manifest(sng):
         'LeaderboardChallengeRating': 0,
         'ManifestUrn': 'urn:database:json-db:' + urn_full,
         'MasterID_PS3': -1,
-        'MasterID_RDV': 30001,
+        'MasterID_RDV': random.randint(0, 2 ** 16 - 1),  # todo VOCAL
         'MasterID_XBox360': -1,
         'MaxPhraseDifficulty': sng.metadata.maxDifficulty,
         'MediumMastery': mediumMastery,
@@ -723,25 +777,25 @@ def manifest_header(manifest):
 def compile_xml(text):
     sng = xml2json(text, notag=True)
     process_sng(sng)
-    manifest = build_manifest(sng)
-    return manifest, sngparser.SONG.build(sng)
+    urn, manifest = build_manifest(sng)
+    return urn, manifest_header(manifest), sngparser.SONG.build(sng)
 
 
-if __name__ == '__main__':
-    from docopt import docopt
+# if __name__ == '__main__':
+#     from docopt import docopt
 
-    args = docopt(__doc__)
+#     args = docopt(__doc__)
 
-    for f in args['FILE']:
-        print 'Processing', f
-        data = open(f, 'r').read()
+#     for f in args['FILE']:
+#         print 'Processing', f
+#         data = open(f, 'r').read()
 
-        manifest, sng = compile_xml(data)
-        filename = manifest['ManifestUrn'][21:]
+#         manifest, sng = compile_xml(data)
+#         filename = manifest['ManifestUrn'][21:]
 
-        with open(filename + '.sng', 'wb') as stream:
-            stream.write(sng)
+#         with open(filename + '.sng', 'wb') as stream:
+#             stream.write(sng)
 
-        with open(filename + '.json', 'w') as stream:
-            d = manifest_header(manifest)
-            stream.write(json.dumps(d, indent=2, sort_keys=True))
+#         with open(filename + '.json', 'w') as stream:
+#             d = manifest_header(manifest)
+#             stream.write(json.dumps(d, indent=2, sort_keys=True))

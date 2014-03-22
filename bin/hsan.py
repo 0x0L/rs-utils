@@ -1,11 +1,3 @@
-#!/usr/bin/env python
-
-"""
-Generate xblock and HSAN db from a collection of JSON files
-
-Usage: hsan.py FILES...
-"""
-
 import json
 
 HSAN_KEYS = [
@@ -56,10 +48,8 @@ XBLOCK_TEMPLATE = """
     </entity>"""
 
 
-if __name__ == '__main__':
-    from docopt import docopt
-
-    args = docopt(__doc__)
+def hsan(manifests):
+    """Returns .hsan, .xblock"""
 
     hsan_db = {}
     hsan_db['Entries'] = {}
@@ -71,36 +61,30 @@ if __name__ == '__main__':
 
     name = ''
 
-    for f in args['FILES']:
-        print 'Processing', f
+    for manifest in manifests:
+        for persistent_id, e in manifest['Entries'].iteritems():
+            entry = e['Attributes']
 
-        with open(f, 'r') as stream:
-            manifest = json.loads(stream.read())
-            for persistent_id, e in manifest['Entries'].iteritems():
-                entry = e['Attributes']
+            entry['name'] = entry['DLCKey'].lower()
+            entry['persistent_id'] = entry['PersistentID'].lower()
 
-                entry['name'] = entry['DLCKey'].lower()
-                entry['persistent_id'] = entry['PersistentID'].lower()
+            xblock += XBLOCK_TEMPLATE % entry
 
-                xblock += XBLOCK_TEMPLATE % entry
-
-                hsan_entry = {}
-                for k in HSAN_KEYS:
+            hsan_entry = {}
+            for k in HSAN_KEYS:
+                if k in entry:
                     hsan_entry[k] = entry[k]
 
+            if 'ArrangementProperties' in entry:
                 prop = entry['ArrangementProperties']
                 hsan_entry['RouteMask'] = prop['routeMask']
                 hsan_entry['Representative'] = prop['represent']
 
-                hsan_db['Entries'][persistent_id] = {'Attributes': hsan_entry}
+            hsan_db['Entries'][persistent_id] = {'Attributes': hsan_entry}
 
-                name = entry['name']
+            name = entry['name']
 
     xblock += '\n  </entitySet>\n'
     xblock += '</game>'
 
-    with open('songs_dlc_' + name + '.hsan', 'w') as stream:
-        stream.write(json.dumps(hsan_db, indent=4, sort_keys=True))
-
-    with open(name + '.xblock', 'w') as stream:
-        stream.write(xblock)
+    return json.dumps(hsan_db, indent=4, sort_keys=True), xblock
