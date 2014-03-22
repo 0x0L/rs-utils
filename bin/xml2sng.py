@@ -559,16 +559,26 @@ def process_sng(sng):
     process_metadata(sng)
 
 
+# TODO vocals, arrangementType, difficulty
+# chords, techniques, tones
 def build_manifest(sng):
+
     urn_base = sng.internalName.lower()
     fullname = sng.internalName + '_' + sng.arrangement
     urn_full = fullname.lower()
 
     entry_id = md5.new(urn_full).hexdigest().upper()
 
-    # TODO compute routeMask
-    sng.arrangementProperties['routeMask'] = 1
-    arrangementSort = 0
+    sng.arrangementProperties['routeMask'] = 0  # ROUTETYPE_MASK_UNDEFINED
+    # ROUTETYPE_MASK_ANY = 8 ?
+    if sng.arrangementProperties.pathLead:
+        sng.arrangementProperties['routeMask'] = 1  # ROUTETYPE_MASK_LEAD
+    elif sng.arrangementProperties.pathRhythm:
+        sng.arrangementProperties['routeMask'] = 2  # ROUTETYPE_MASK_RHYTHM
+    elif sng.arrangementProperties.pathBass:
+        sng.arrangementProperties['routeMask'] = 4  # ROUTETYPE_MASK_BASS
+
+    # TODO
     arrangementType = 0
 
     dnaSolo = max([0.0] + [e.time for e in sng.dnas if e.id == 1])
@@ -703,7 +713,7 @@ def build_manifest(sng):
         'AlbumNameSort': sng.albumNameSort,
         'ArrangementName': sng.arrangement,
         'ArrangementProperties': sng.arrangementProperties,
-        'ArrangementSort': arrangementSort,
+        'ArrangementSort': 0,
         'ArrangementType': arrangementType,
         'ArtistName': sng.artistName,
         'ArtistNameSort': sng.artistNameSort,
@@ -734,6 +744,7 @@ def build_manifest(sng):
         'PhraseIterations': phraseIterations,
         'PreviewBankPath': 'song_' + urn_base + '_preview.bnk',
         'RelativeDifficulty': 0,
+        'Representative': not(sng.arrangementProperties.bonusArr),
         'Score_MaxNotes': sng.metadata.maxNotes,
         'Score_PNV': score_PNV,
         'Sections': sections,
@@ -788,23 +799,3 @@ def compile_xml(text):
     process_sng(sng)
     urn, manifest = build_manifest(sng)
     return urn, manifest_header(manifest), sngparser.SONG.build(sng)
-
-
-# if __name__ == '__main__':
-#     from docopt import docopt
-
-#     args = docopt(__doc__)
-
-#     for f in args['FILE']:
-#         print 'Processing', f
-#         data = open(f, 'r').read()
-
-#         manifest, sng = compile_xml(data)
-#         filename = manifest['ManifestUrn'][21:]
-
-#         with open(filename + '.sng', 'wb') as stream:
-#             stream.write(sng)
-
-#         with open(filename + '.json', 'w') as stream:
-#             d = manifest_header(manifest)
-#             stream.write(json.dumps(d, indent=2, sort_keys=True))

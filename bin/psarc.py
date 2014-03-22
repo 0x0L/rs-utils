@@ -332,6 +332,7 @@ def change_path(data, osx2pc):
     return data
 
 
+# TODO logic for converting needs cleanup
 def convert(filename):
     """Convert between PC and Mac PSARC"""
     content = {}

@@ -20,8 +20,6 @@ TAGS = {
     '.bnk': ['audio', 'wwise-sound-bank']  # ,'macos']
 }
 
-# EXT_TEMPLATE for sng, xml, dds, bnk
-# logpath pour sng et bnk sans platform
 EXT_TEMPLATE = \
 """<urn:uuid:%(uid)s> <http://emergent.net/aweb/1.0/llid> "%(llid)s".
 <urn:uuid:%(uid)s> <http://emergent.net/aweb/1.0/logpath> "%(logpath)s".
@@ -36,18 +34,24 @@ def run(path):
         for file in filenames:
             fname, ext = os.path.splitext(file)
 
-            if ext in TAGS:
-                fullpath = dpath + '/' + file
-                uid = uuid.uuid3(uuid.NAMESPACE_URL, fullpath)
+            if not ext in TAGS:
+                continue
 
-                output += COMMON_TAG % locals()
-                for tag in TAGS[ext]:
-                    output += TAG_TEMPLATE % locals()
+            fullpath = dpath + '/' + file
+            uid = uuid.uuid3(uuid.NAMESPACE_URL, fullpath)
 
-                if ext in ['.sng', '.xml', '.dds', '.bnk']:
-                    llid = str(uid)[:8] + '-0000-0000-0000-000000000000'
-                    logpath = fullpath.replace(
-                        'macos/', '').replace('mac/', '')
-                    output += EXT_TEMPLATE % locals()
+            output += COMMON_TAG % locals()
+            for tag in TAGS[ext]:
+                if tag == 'macos' and fullpath.find('audio/windows') > -1:
+                    tag = 'dx9'
+                output += TAG_TEMPLATE % locals()
+
+            if ext in ['.sng', '.xml', '.dds', '.bnk']:
+                llid = str(uid)[:8] + '-0000-0000-0000-000000000000'
+                logpath = fullpath.replace(
+                    'bin/macos', 'bin').replace('audio/mac', 'audio')
+                logpath = logpath.replace(
+                    'bin/generic', 'bin').replace('audio/windows', 'audio')
+                output += EXT_TEMPLATE % locals()
 
     return output
