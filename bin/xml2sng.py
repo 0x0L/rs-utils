@@ -608,6 +608,14 @@ def build_manifest(sng):
             'IsSolo': s.isSolo
         })
 
+    phrases = []
+    for p in sng.phrases:
+        phrases.append({
+            "MaxDifficulty": p.maxDifficulty,
+            "Name": p.name,
+            "IterationCount": p.phraseIterationLinks
+        })
+
     phraseIterations = []
     for piter in sng.phraseIterations:
         phraseIterations.append({
@@ -722,6 +730,7 @@ def build_manifest(sng):
         'NotesEasy': notesEasy,
         'NotesHard': notesHard,
         'NotesMedium': notesMedium,
+        'Phrases': phrases,
         'PhraseIterations': phraseIterations,
         'PreviewBankPath': 'song_' + urn_base + '_preview.bnk',
         'RelativeDifficulty': 0,
