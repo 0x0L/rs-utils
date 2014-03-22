@@ -67,7 +67,6 @@ class SngBuilder:
         self.chordTemplates = []
         self.notes = []
         self.chords = []
-        self.anchors = []
         self.handShapes = []
         self.ebeats = []
         self.events = []
@@ -80,6 +79,12 @@ class SngBuilder:
         self.beats_per_bar = 0.0
         self.measure_offset = 0.0
 
+        self.anchors = [{
+            'time': 10.000,
+            'fret': 2,
+            'width': 4.000
+        }]
+
         self.phrases = [{
             '@disparity': 0,
             '@ignore': 0,
@@ -90,14 +95,6 @@ class SngBuilder:
 
         self.phraseIterations = [{
             '@time': 0.000,
-            '@phraseId': 0,
-            '@variation': ''
-        }, {
-            '@time': 10.000,
-            '@phraseId': 0,
-            '@variation': ''
-        }, {
-            '@time': 52.000,
             '@phraseId': 0,
             '@variation': ''
         }]
