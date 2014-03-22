@@ -20,29 +20,13 @@ do
     BASENAME=$(basename "$var")
     BASENAME="${BASENAME%.*}"
 
-    # ffmpeg -i tab.mp3 -af "volumedetect" -f null /dev/null 2>&1 | grep max_vol
-        # -af volume=2.0 \
-
     tar -zxf "$THISPATH/../share/Wwise_Template.tar.gz"
-    ffmpeg -i "$1" \
-        -filter_complex "aevalsrc=0:d=$SILENCE[slug];[slug][0]concat=n=2:v=0:a=1[out]" \
-        -map '[out]' Wwise_Template/Originals/SFX/song.wav
+    ffmpeg -i "$1" Wwise_Template/Originals/SFX/song.wav
 
     cd Wwise_Template || exit
     "$THISPATH/WwiseCLI" Template.wproj -GenerateSoundBanks
     cd ..
 
     mv Wwise_Template/.cache/Windows/SFX/*.wem "$BASENAME.wem"
-    rm -fr Wwise_Template
-
-
-    tar -zxf "$THISPATH/../share/Wwise_Template.tar.gz"
-    ffmpeg -ss $OFFSET_PREVIEW -t 30 -i "$1" Wwise_Template/Originals/SFX/song.wav
-
-    cd Wwise_Template || exit
-    "$THISPATH/WwiseCLI" Template.wproj -GenerateSoundBanks
-    cd ..
-
-    mv Wwise_Template/.cache/Windows/SFX/*.wem "${BASENAME}_preview.wem"
     rm -fr Wwise_Template
 done
