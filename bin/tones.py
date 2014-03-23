@@ -11,12 +11,9 @@ import json
 import psarc
 
 
-# A bit dirty since dict are not hashable
 def uniq_append(tones, ts):
     for tone in ts:
-        try:
-            tones.index(tone)
-        except:
+        if not tone in tones:
             tones.append(tone)
 
 

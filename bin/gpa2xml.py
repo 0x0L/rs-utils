@@ -9,6 +9,7 @@ Usage:
 
 from time import strftime
 import re
+import json
 
 from gpx2xml import has_prop, get_prop, load_goplayalong
 from xmlhelpers import json2xml, InlineContent
@@ -53,6 +54,33 @@ def text_for_sort(text):
 #     '@endTime': 5.728,
 #     '@startTime': 5.672
 # }]
+
+CH_TEMPLATES = json.loads(open('../share/chords.database.json').read())
+CH_TEMPLATES = CH_TEMPLATES['Static']['Chords']['Entries']
+
+def find_fingering(chord):
+    f0 = [chord['@fret' + str(k)] for k in range(6)]
+    mask = [x > -1 for x in f0]
+    f = f0
+    min_fret = min([x for x in f if x > -1])
+    if min_fret > 0:
+        f = [x - min_fret + 1 for x in f]
+
+    w = None
+    for c in CH_TEMPLATES:
+        z = [x < 0 or x == y for x, y in zip(f, c['Frets'])]
+        if all(z):
+            w = c
+            break
+
+    if w:
+        k = [-1 if not y else x for x, y in zip(c['Fingers'], mask)]
+        for kk in range(6):
+            chord['@finger' + str(kk)] = k[kk]
+            # print chord
+        # print f0, '=>', k
+    # else:
+    #     print '### Not found', f0
 
 
 class SngBuilder:
@@ -145,7 +173,7 @@ class SngBuilder:
             '@pinchHarmonics': xany(self.notes, '@harmonicPinch'),
             '@powerChords': 0,
             '@represent': 1,
-            '@slapPop': xany(self.notes, '@pluck') | xany(self.notes, '@slap'),
+            '@slapPop': int(any(n['@slap'] != -1 or n['@pluck'] != -1 for n in self.notes)),
             '@slides': int(any(n['@slideTo'] != -1 for n in self.notes)),
             '@standardTuning': standardTuning,
             '@sustain': xany(self.notes, '@sustain'),
@@ -234,8 +262,13 @@ class SngBuilder:
         }
         for n in notes:
             string, fret = n['@string'], n['@fret']
-            chordTemplate['@finger' + str(string)] = -1  # TODO
+            chordTemplate['@finger' + str(string)] = -1
             chordTemplate['@fret' + str(string)] = fret
+
+        find_fingering(chordTemplate)
+        # print chordTemplate
+        for n in notes:
+            n['@leftHand'] = chordTemplate['@finger' + str(n['@string'])]
 
         if 'Arpeggio' in beat:
             chordTemplate['@displayName'] += '_arp'
@@ -294,10 +327,10 @@ class SngBuilder:
                 '@mute': int(has_prop(note, 'Muted')),
                 '@palmMute': int(has_prop(note, 'PalmMuted')),
                 '@pickDirection': 0,
-                '@pluck': int(has_prop(beat, 'Popped')),
+                '@pluck': -1,  # int(has_prop(beat, 'Popped')),
                 '@pullOff': 0,
                 '@rightHand': -1,
-                '@slap': int(has_prop(beat, 'Slapped')),
+                '@slap': -1,  # int(has_prop(beat, 'Slapped')),
                 '@slideTo': -1,
                 '@slideUnpitchTo': -1,
                 '@string': get_prop(note, 'String'),

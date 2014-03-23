@@ -11,6 +11,9 @@ import hsan
 import xml2sng
 import xgraph
 
+
+
+
 d1 = '../test/'
 f = d1 + 'tab.xml'
 
@@ -21,7 +24,7 @@ internalName += filter(str.isalnum, gp.Score.Title)
 
 internal_name = internalName.lower()
 
-d = '../test/pack3/' + internal_name + '_m/'
+d = '../test/' + internal_name + '_m/'
 
 try:
     os.makedirs(d + 'audio/mac/')
@@ -41,14 +44,23 @@ shutil.copyfile('../share/rsenumerable_root.flat', d + 'flatmodels/rs/rsenumerab
 shutil.copyfile('../share/rsenumerable_song.flat', d + 'flatmodels/rs/rsenumerable_song.flat')
 shutil.copyfile('../share/showlights.xml', d + 'songs/arr/' + internal_name + '_showlights.xml')
 
+
+
+
+
 i = d1 + 'tab.jpg'
 for s in [64, 128, 256]:
     output = d + 'gfxassets/album_art/album_' + internal_name + '_' + str(s) + '.dds'
     subprocess.call(['wine', '../share/nvdxt.exe',
                      '-file', i,
                      '-output', output,
+                     '-nomipmap',
                      '-prescale', str(s), str(s),
-                     '-nomipmap', '-RescaleBox', '-dxt1a'])
+                     '-RescaleBox', '-dxt1a'])
+
+
+
+
 
 SILENCE = 10
 OFFSET_PREVIEW = 20
@@ -66,6 +78,8 @@ def runWwise(d):
     p.wait()
 
 def getWEM(d, name, preview=False):
+    runWwise(d + 'Wwise_Template')
+
     u = d + 'Wwise_Template/.cache/Windows/SFX/'
     for x in os.listdir(u):
         if x.endswith(".wem"):
@@ -89,15 +103,15 @@ subprocess.call(['ffmpeg', '-i', d1 + mp3, '-filter_complex',
                  'aevalsrc=0:d=' + str(SILENCE) + '[slug];[slug][0]concat=n=2:v=0:a=1[out]',
                  '-map', "['out']", f])
 
-runWwise(audio_dir + 'Wwise_Template')
 getWEM(audio_dir, internalName)
 shutil.rmtree(audio_dir + 'Wwise_Template/')
 
 extractTar(audio_dir)
 subprocess.call(['ffmpeg', '-i', d1 + mp3, '-ss', str(OFFSET_PREVIEW), '-t', '30', f])
-runWwise(audio_dir + 'Wwise_Template')
-getWEM(audio_dir, internalName + '_preview')
+
+getWEM(audio_dir, internalName, preview=True)
 shutil.rmtree(audio_dir + 'Wwise_Template/')
+
 
 
 
@@ -119,7 +133,7 @@ for urn, sng in zip(urns, sngs):
 u = d + 'manifests/songs_dlc_' + internal_name + '/'
 for urn, manifest in zip(urns, manifests):
     with open(u + urn + '.json', 'w') as s:
-        s.write(json.dumps(manifest, indent=2, sort_keys=True))
+        s.write(json.dumps(manifest, indent=4, sort_keys=True))
 
 with open(u + 'songs_dlc_' + internal_name + '.hsan', 'w') as s:
     s.write(hsandb)
@@ -127,7 +141,6 @@ with open(u + 'songs_dlc_' + internal_name + '.hsan', 'w') as s:
 u = d + 'gamexblocks/nsongs/' + internal_name + '.xblock'
 with open(u, 'w') as s:
     s.write(xblock)
-
 
 with open(d + internal_name + '_aggregategraph.nt', 'w') as s:
     s.write(xgraph.run(d))
