@@ -16,17 +16,17 @@ from xmlhelpers import json2xml, InlineContent
 
 
 DURATIONS = {
-    'Long': -4,
-    'DoubleWhole': -3,
-    'Whole': -2,
-    'Half': -1,
-    'Quarter': 0,
-    'Eighth': 1,
-    '16th': 2,
-    '32nd': 3,
-    '64th': 4,
-    '128th': 5,
-    '256th': 6,
+    'Long': 16.0,
+    'DoubleWhole': 8.0,
+    'Whole': 4.0,
+    'Half': 2.0,
+    'Quarter': 1.0,
+    'Eighth': 1.0 / 2.0,
+    '16th': 1.0 / 4.0,
+    '32nd': 1.0 / 8.0,
+    '64th': 1.0 / 16.0,
+    '128th': 1.0 / 32.0,
+    '256th': 1.0 / 64.0,
 }
 
 
@@ -38,6 +38,8 @@ def text_for_sort(text):
 CH_TEMPLATES = json.loads(open('../share/chords.database.json').read())
 CH_TEMPLATES = CH_TEMPLATES['Static']['Chords']['Entries']
 
+
+# TODO: make the logic clearer :)
 def find_fingering(chord):
     f0 = [chord['@fret' + str(k)] for k in range(6)]
     mask = [x > -1 for x in f0]
@@ -84,8 +86,8 @@ class SngBuilder:
         self.measure = 0
         self.bar_idx = 0
         self.time = self.timefun(0)
-        self.beats_per_bar = 0.0
-        self.measure_offset = 0.0
+        self.quarters_per_bar = 0.0
+        self.offset_in_measure = 0.0
 
         self.anchors = [{
             '@time': 10.000,
@@ -93,6 +95,7 @@ class SngBuilder:
             '@width': 4.000
         }]
 
+        # TODO: from sections, double bar and repeats
         self.phrases = [{
             '@disparity': 0,
             '@ignore': 0,
@@ -131,6 +134,7 @@ class SngBuilder:
         def xany(s, prop):
             return int(any(n[prop] for n in s))
 
+        # TODO: check for techniques...
         arrangementProperties = {
             '@barreChords': 0,
             '@bassPick': 0,
@@ -227,22 +231,13 @@ class SngBuilder:
         chordTemplate = {
             '@chordName': '',  # TODO
             '@displayName': '',  # TODO
-            '@finger0': -1,
-            '@finger1': -1,
-            '@finger2': -1,
-            '@finger3': -1,
-            '@finger4': -1,
-            '@finger5': -1,
-            '@fret0': -1,
-            '@fret1': -1,
-            '@fret2': -1,
-            '@fret3': -1,
-            '@fret4': -1,
-            '@fret5': -1
+            '@finger0': -1, '@finger1': -1, '@finger2': -1,
+            '@finger3': -1, '@finger4': -1, '@finger5': -1,
+            '@fret0': -1, '@fret1': -1, '@fret2': -1,
+            '@fret3': -1, '@fret4': -1, '@fret5': -1
         }
         for n in notes:
             string, fret = n['@string'], n['@fret']
-            chordTemplate['@finger' + str(string)] = -1
             chordTemplate['@fret' + str(string)] = fret
 
         find_fingering(chordTemplate)
@@ -303,9 +298,8 @@ class SngBuilder:
             # if has_prop(note, 'Bended'):
             #     print note.Properties.Property
 
-            # TODO slide, bend, hopo
-            # sustain
-            # left/rightHand ?
+            # TODO slide, bend, hopo, sustain
+            # handle fingering already there
 
             harmonic = get_prop(note, 'HarmonicType')
 
@@ -345,7 +339,7 @@ class SngBuilder:
 
     def new_beat(self, beat):
         rhythm = self.song.Rhythms[beat.Rhythm['@ref']]
-        inc = 1.0 / (2**DURATIONS[rhythm.NoteValue]) / self.beats_per_bar
+        inc = DURATIONS[rhythm.NoteValue] / self.quarters_per_bar
 
         if 'PrimaryTuplet' in rhythm:
             tuplet = rhythm['PrimaryTuplet']
@@ -355,10 +349,11 @@ class SngBuilder:
             inc *= 1.5
 
         if 'GraceNotes' in beat and beat.GraceNotes == 'BeforeBeat':
-            self.measure_offset -= inc
-            self.time = self.timefun(self.measure + self.measure_offset)
+            self.offset_in_measure -= inc
+            self.time = self.timefun(self.measure + self.offset_in_measure)
 
-        self.current_beat_length = self.timefun(self.measure + self.measure_offset + inc) - self.time
+        # TODO: hmmm
+        self.current_beat_length = self.timefun(self.measure + self.offset_in_measure + inc) - self.time
 
         if 'FreeText' in beat:
             self.tones.append({
@@ -366,20 +361,23 @@ class SngBuilder:
                 '@time': self.time
             })
 
+        # TODO: handle current hand position
         if 'Notes' in beat:
             if type(beat.Notes) is not list:
                 beat.Notes = [beat.Notes]
 
             self.new_notes(beat, beat.Notes)
 
-        self.measure_offset += inc
-        self.time = self.timefun(self.measure + self.measure_offset)
+        self.offset_in_measure += inc
+        self.time = self.timefun(self.measure + self.offset_in_measure)
+
+        # Time stays the same but next note duration is diminished by inc
         if 'GraceNotes' in beat and beat.GraceNotes == 'OnBeat':
-            self.measure_offset -= inc
+            self.offset_in_measure -= inc
 
     def new_bar(self, bar, bar_settings):
         num, den = map(int, bar_settings.Time.split('/'))
-        self.beats_per_bar = 4.0 * num / den
+        self.quarters_per_bar = 4.0 * num / den
 
         if 'Repeat' in bar_settings and bar_settings.Repeat['@start']:
             self.start_repeat_bar = self.bar_idx
@@ -392,13 +390,14 @@ class SngBuilder:
         #         '@startTime': self.timefun(self.measure)
         #     })
 
-        for i in range(int(self.beats_per_bar)):
+        for i in range(int(self.quarters_per_bar)):
             self.ebeats.append({
-                '@time': self.timefun(self.measure + i / self.beats_per_bar),
+                '@time': self.timefun(self.measure + i / self.quarters_per_bar),
                 '@measure': self.measure + 1 if i == 0 else -1
             })
 
-        self.measure_offset = 0.0
+        self.offset_in_measure = 0.0
+        # TODO: other voices
         for b in self.song.Voices[bar.Voices[0]].Beats:
             beat = self.song.Beats[b]
             self.new_beat(beat)
@@ -421,11 +420,11 @@ class SngBuilder:
             bar = self.song.Bars[bar_settings.Bars[self.track['@id']]]
 
             # TODO: beat value
-            # gp.MasterTrack['Automations']['Automation']['Type']
+            # gp.MasterTrack['Automations']['Automation']['Type'] == 'Tempo'
             self.new_bar(bar, bar_settings)
 
-            self.bar_idx += 1  # no repeats
-            self.measure += 1  # counting repeats
+            self.bar_idx += 1  # no repeats -> get position in score
+            self.measure += 1  # counting repeats -> compute time
 
         return self.json()
 
@@ -437,6 +436,8 @@ if __name__ == '__main__':
     args = docopt(__doc__)
 
     gp, mp3, sync = load_goplayalong(args['FILE'])
+
+    # TODO: other tracks
     sng = SngBuilder(gp, gp.Tracks[0], sync)
 
     x = json2xml('song', sng.run())
