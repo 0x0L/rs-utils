@@ -35,26 +35,6 @@ def text_for_sort(text):
     return x.capitalize()
 
 
-# TODO
-
-
-# events = [{
-#     '@time': 10.000,
-#     '@code': 'B0'
-# }]
-
-# anchors = [{
-#     '@time': 5.235,
-#     '@fret': 4,
-#     '@width': 4.000
-# }]
-
-# handShapes = [{
-#     '@chordId': 4,
-#     '@endTime': 5.728,
-#     '@startTime': 5.672
-# }]
-
 CH_TEMPLATES = json.loads(open('../share/chords.database.json').read())
 CH_TEMPLATES = CH_TEMPLATES['Static']['Chords']['Entries']
 
@@ -108,9 +88,9 @@ class SngBuilder:
         self.measure_offset = 0.0
 
         self.anchors = [{
-            'time': 10.000,
-            'fret': 2,
-            'width': 4.000
+            '@time': 10.000,
+            '@fret': 2,
+            '@width': 4.000
         }]
 
         self.phrases = [{
@@ -266,6 +246,7 @@ class SngBuilder:
             chordTemplate['@fret' + str(string)] = fret
 
         find_fingering(chordTemplate)
+
         # print chordTemplate
         for n in notes:
             n['@leftHand'] = chordTemplate['@finger' + str(n['@string'])]
@@ -278,6 +259,20 @@ class SngBuilder:
             self.chordTemplates.append(chordTemplate)
         else:
             chordId = self.chordTemplates.index(chordTemplate)
+
+        self.handShapes.append({
+            '@chordId': chordId,
+            '@endTime': self.time + self.current_beat_length * 0.90,
+            '@startTime': self.time
+        })
+
+        # TODO case completely open chord
+        lowest_fret = min([n['@fret'] for n in notes if n['@fret'] > 0])
+        self.anchors.append({
+            '@time': self.time,
+            '@fret': lowest_fret,
+            '@width': 4.000
+        })
 
         # TODO check any or all ?
         return {
@@ -351,9 +346,18 @@ class SngBuilder:
         rhythm = self.song.Rhythms[beat.Rhythm['@ref']]
         inc = 1.0 / (2**DURATIONS[rhythm.NoteValue]) / self.beats_per_bar
 
+        if 'PrimaryTuplet' in rhythm:
+            tuplet = rhythm['PrimaryTuplet']
+            inc *= tuplet['@den'] / tuplet['@num']
+
+        if 'AugmentationDot' in rhythm:
+            inc *= 1.5
+
         if 'GraceNotes' in beat and beat.GraceNotes == 'BeforeBeat':
             self.measure_offset -= inc
             self.time = self.timefun(self.measure + self.measure_offset)
+
+        self.current_beat_length = self.timefun(self.measure + self.measure_offset + inc) - self.time
 
         if 'FreeText' in beat:
             self.tones.append({
@@ -379,12 +383,13 @@ class SngBuilder:
         if 'Repeat' in bar_settings and bar_settings.Repeat['@start']:
             self.start_repeat_bar = self.bar_idx
 
-        if 'Section' in bar_settings:
-            self.sections.append({
-                '@name': bar_settings.Section.Text,
-                '@number': len(self.sections),  # TODO
-                '@startTime': self.timefun(self.measure)
-            })
+        # Need to update phrases too
+        # if 'Section' in bar_settings:
+        #     self.sections.append({
+        #         '@name': bar_settings.Section.Text,
+        #         '@number': len(self.sections),  # TODO
+        #         '@startTime': self.timefun(self.measure)
+        #     })
 
         for i in range(int(self.beats_per_bar)):
             self.ebeats.append({
