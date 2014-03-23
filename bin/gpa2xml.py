@@ -266,13 +266,14 @@ class SngBuilder:
             '@startTime': self.time
         })
 
-        # TODO case completely open chord
-        lowest_fret = min([n['@fret'] for n in notes if n['@fret'] > 0])
-        self.anchors.append({
-            '@time': self.time,
-            '@fret': lowest_fret,
-            '@width': 4.000
-        })
+        lowest_fret = [n['@fret'] for n in notes if n['@fret'] > -1]
+        if lowest_fret != []:
+            lowest_fret = min(lowest_fret)
+            self.anchors.append({
+                '@time': self.time,
+                '@fret': lowest_fret,
+                '@width': 4.000
+            })
 
         # TODO check any or all ?
         return {
@@ -419,6 +420,8 @@ class SngBuilder:
             bar_settings = self.song.MasterBars[self.bar_idx]
             bar = self.song.Bars[bar_settings.Bars[self.track['@id']]]
 
+            # TODO: beat value
+            # gp.MasterTrack['Automations']['Automation']['Type']
             self.new_bar(bar, bar_settings)
 
             self.bar_idx += 1  # no repeats
@@ -433,7 +436,7 @@ if __name__ == '__main__':
 
     args = docopt(__doc__)
 
-    gp, sync = load_goplayalong(args['FILE'])
+    gp, mp3, sync = load_goplayalong(args['FILE'])
     sng = SngBuilder(gp, gp.Tracks[0], sync)
 
     x = json2xml('song', sng.run())
