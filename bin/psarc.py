@@ -69,13 +69,6 @@ def decrypt_profile(stream):
     return json.loads(x[:-1])  # it's a long C string
 
 
-def decrypt_config(stream):
-    """For pkgconfig.ini"""
-    s = stream.read()
-    cipher = AES.new(CONFIG_KEY.decode('hex'))
-    return cipher.decrypt(pad(s))
-
-
 def stdout_same_line(line):
     """Prepend carriage return and output to stdout"""
     sys.stdout.write('\r' + line[:80])
@@ -130,6 +123,25 @@ def encrypt_sng(data, key):
     return output + 56 * chr(0)
 
 
+def decrypt_config(data):
+    """For pkgconfig.ini"""
+    data = data[:-56]  # remove signature
+
+    cipher = AES.new(CONFIG_KEY.decode('hex'))
+    t = cipher.decrypt(data)
+    if t.find('\x00') > -1:  # padding was applied
+        return t[:t.index('\x00')]
+    return t
+
+
+def encrypt_config(data):
+    """For pkgconfig.ini"""
+    cipher = AES.new(CONFIG_KEY.decode('hex'))
+    t = cipher.encrypt(pad(data))
+    t += 56 * chr(0)
+    return t
+
+
 def read_entry(filestream, entry):
     """Extract zlib for one entry"""
     data = ''
@@ -156,6 +168,10 @@ def read_entry(filestream, entry):
     elif entry['filepath'].find('songs/bin/generic/') > -1:
         data = decrypt_sng(data, PC_KEY)
 
+    # Requires bypass for ini
+    # if entry['filepath'] == 'pkgconfig.ini':
+    #     data = decrypt_config(data)
+
     return data
 
 
@@ -167,6 +183,10 @@ def create_entry(name, data):
         data = encrypt_sng(data, MAC_KEY)
     elif name.find('songs/bin/generic/') > -1:
         data = encrypt_sng(data, PC_KEY)
+
+    # Requires bypass for ini
+    # if name == 'pkgconfig.ini':
+    #     data = encrypt_config(data)
 
     zlength = []
     output = ''

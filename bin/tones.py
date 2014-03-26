@@ -26,13 +26,20 @@ def from_psarc(filename):
             if not entry['filepath'].endswith('.json'):
                 continue
 
-            data = psarc.read_entry(stream, entry)
-            x = json.loads(data)
-
-            for k, v in x['Entries'].iteritems():
-                e = v['Attributes']
-                if 'Tones' in e:
-                    uniq_append(tones, e['Tones'])
+            try:
+                data = psarc.read_entry(stream, entry)
+                x = json.loads(data)
+                if 'Entries' in x:
+                    for k, v in x['Entries'].iteritems():
+                        e = v['Attributes']
+                        if 'Tones' in e:
+                            uniq_append(tones, e['Tones'])
+                elif 'Static' in x:  # for static.psarc:manifests/tonemanager
+                    y = x['Static']
+                    if 'ToneManager' in y:
+                        uniq_append(tones, y['ToneManager']['Tones'])
+            except:
+                continue
 
     return tones
 
