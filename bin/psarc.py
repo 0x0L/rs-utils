@@ -10,14 +10,19 @@ Usage:
 """
 
 from Crypto.Cipher import AES
-from Crypto.Util import _counter
+from Crypto.Util import Counter
 
 import struct
 import zlib
 import os
-import md5
+import hashlib
 import sys
 import json
+
+import codecs
+
+import sys
+print("psarc.py running on Python version %s.%s" % (sys.version_info.major,sys.version_info.minor))
 
 MAGIC = "PSAR"
 VERSION = 65540
@@ -39,8 +44,13 @@ CONFIG_KEY = '378B9026EE7DE70B8AF124C1E30978670F9EC8FD5E7285A86442DD73068C0473'
 
 def pad(data, blocksize=16):
     """Zeros padding"""
+    #So we need zeroes in order to match AES's encoding scheme which breaks
+    #the data into 16-byte chunks. If we have 52 bytes to decode, then we have
+    #3 full 16-byte blocks, and 4 left over. This means we need 12 bytes worth
+    #of padding. That means we get 12 bytes worth of zeroes.
     padding = (blocksize - len(data)) % blocksize
-    return data + chr(0) * padding
+    #Modify this to return a bytes object, since that's what pycrypto needs.
+    return data + bytes(padding)
 
 
 def path2dict(path):
@@ -62,7 +72,7 @@ def decrypt_profile(stream):
     s = stream.read()
     size = struct.unpack('<L', s[16:20])[0]
 
-    cipher = AES.new(PRF_KEY.decode('hex'))
+    cipher = AES.new(codecs.decode(PRF_KEY,'hex'))
     x = zlib.decompress(cipher.decrypt(pad(s[20:])))
     assert(size == len(x))
 
@@ -77,10 +87,10 @@ def stdout_same_line(line):
 
 def aes_ctr(data, key, ivector, encrypt=True):
     """AES CTR Mode"""
-    output = ''
-
-    ctr = _counter._newBE('', '', ivector, allow_wraparound=False)
-    cipher = AES.new(key.decode('hex'), mode=AES.MODE_CTR, counter=ctr)
+    output = bytes()
+    #First param: Number of bits of the cipher. 64 is not meaningful.
+    ctr = Counter.new(64, initial_value = ivector)
+    cipher = AES.new(codecs.decode(key,'hex'), mode=AES.MODE_CTR, counter=ctr)
 
     if encrypt:
         output += cipher.encrypt(pad(data))
@@ -94,16 +104,16 @@ def decrypt_sng(data, key):
     """Decrypt SNG. Data consist of a 8 bytes header, 16 bytes initialization
     vector and payload and the DSA signature. Payload is first decrypted using
     AES CTR and then zlib decompressed. Size is checked."""
-
-    decrypted = aes_ctr(data[24:], key, data[8:24], encrypt=False)
+    #Changed conversion from bytes to int for initial value.
+    decrypted = aes_ctr(data[24:], key, int(codecs.encode(data[8:24],'hex'),16), encrypt=False)
     length = struct.unpack('<L', decrypted[:4])[0]  # file size
     payload = ''
     try:
         payload = zlib.decompress(decrypted[4:])
         assert len(payload) == length
     except Exception as e:
-        print 'An error occurred while processing sng!'
-        print e
+        #print('An error occurred while processing sng!')
+        #print(e)
         payload = decrypted
 
     return payload
@@ -116,18 +126,17 @@ def encrypt_sng(data, key):
     payload = struct.pack('<L', len(data))
     payload += zlib.compress(data, zlib.Z_BEST_COMPRESSION)
 
-    ivector = 16 * chr(0)
+    ivector = bytes(16)
     output += ivector
     output += aes_ctr(payload, key, ivector)
-
-    return output + 56 * chr(0)
+    return output + bytes(56)
 
 
 def decrypt_config(data):
     """For pkgconfig.ini"""
     data = data[:-56]  # remove signature
 
-    cipher = AES.new(CONFIG_KEY.decode('hex'))
+    cipher = AES.new(codecs.decode(CONFIG_KEY,'hex'))
     t = cipher.decrypt(data)
     if t.find('\x00') > -1:  # padding was applied
         return t[:t.index('\x00')]
@@ -136,15 +145,15 @@ def decrypt_config(data):
 
 def encrypt_config(data):
     """For pkgconfig.ini"""
-    cipher = AES.new(CONFIG_KEY.decode('hex'))
+    cipher = AES.new(codecs.decode(CONFIG_KEY,'hex'))
     t = cipher.encrypt(pad(data))
-    t += 56 * chr(0)
+    t += bytes(56)
     return t
 
 
 def read_entry(filestream, entry):
     """Extract zlib for one entry"""
-    data = ''
+    data = bytes()
 
     length = entry['length']
     zlength = entry['zlength']
@@ -209,14 +218,14 @@ def create_entry(name, data):
         'zlength': zlength,
         'length': len(data),
         'data': output,
-        'md5': md5.new(name).digest() if name != '' else 16 * chr(0)
+        'md5': md5.new(name).digest() if name != '' else bytes(16)
     }
 
 
 def cipher_toc():
     """AES CFB Mode"""
-    return AES.new(ARC_KEY.decode('hex'), mode=AES.MODE_CFB,
-                   IV=ARC_IV.decode('hex'), segment_size=128)
+    return AES.new(codecs.decode(ARC_KEY,'hex'), mode=AES.MODE_CFB,
+                   IV=codecs.decode(ARC_IV,'hex'), segment_size=128)
 
 
 def read_toc(filestream):
@@ -231,18 +240,18 @@ def read_toc(filestream):
 
     toc_size = header[3] - 32
     n_entries = header[5]
-
     toc = cipher_toc().decrypt(pad(filestream.read(toc_size)))
     toc_position = 0
 
     idx = 0
     while idx < n_entries:
         data = toc[toc_position:toc_position + ENTRY_SIZE]
+
         entries.append({
             'md5': data[:16],
             'zindex': struct.unpack('>L', data[16:20])[0],
-            'length': struct.unpack('>Q', 3 * chr(0) + data[20:25])[0],
-            'offset': struct.unpack('>Q', 3 * chr(0) + data[25:])[0]
+            'length': struct.unpack('>Q', b'\x00'*3 + data[20:25])[0],
+            'offset': struct.unpack('>Q', b'\x00'*3 + data[25:])[0]
         })
         toc_position += ENTRY_SIZE
         idx += 1
@@ -261,7 +270,7 @@ def read_toc(filestream):
     entries[0]['filepath'] = ''
     filepaths = read_entry(filestream, entries[0]).split()
     for entry, filepath in zip(entries[1:], filepaths):
-        entry['filepath'] = filepath
+        entry['filepath'] = filepath.decode("utf-8")
 
     return entries[1:]
 
@@ -308,19 +317,17 @@ def extract_psarc(filename):
 
     with open(filename, 'rb') as psarc:
         entries = read_toc(psarc)
-
         logmsg = 'Extracting ' + basepath + ' {0}/' + str(len(entries))
+        
         for idx, entry in enumerate(entries):
             stdout_same_line(logmsg.format(idx + 1))
             fname = os.path.join(basepath, entry['filepath'])
             data = read_entry(psarc, entry)
-
             path = os.path.dirname(fname)
             if not os.path.exists(path):
                 os.makedirs(path)
             with open(fname, 'wb') as fstream:
                 fstream.write(data)
-    print
 
 
 def create_psarc(files, filename):
@@ -338,7 +345,6 @@ def create_psarc(files, filename):
         fstream.write(create_toc(entries))
         for entry in entries:
             fstream.write(entry['data'])
-    print
 
 
 def change_path(data, osx2pc):
