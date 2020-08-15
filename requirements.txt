@@ -1,4 +1,4 @@
 construct==2.5.1
 docopt==0.6.1
-pycryptodome==3.4.11
+pycryptodome==3.6.6
 six==1.5.2
